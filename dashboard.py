@@ -8,16 +8,13 @@ st.set_page_config(page_title="LionBit 3D Studio - Painel de Controle", layout="
 # 🎨 DESIGN PREMIUM (Cinza-Grafite de Alto Contraste com Amarelo/Dourado)
 design_premium = """
 <style>
-    /* Fundo principal mais suave e confortável para leitura */
     .stApp {
         background-color: #121212;
         color: #ffffff !important;
     }
-    /* Títulos e Textos principais em Branco Puro */
     h1, h2, h3, p, span, label {
         color: #ffffff !important;
     }
-    /* Estilização dos blocos de métricas com bordas douradas */
     div[data-testid="stMetric"] {
         background-color: #1e1e1e;
         border: 2px solid #ffcc00;
@@ -33,7 +30,6 @@ design_premium = """
         color: #ffffff !important;
         font-weight: bold;
     }
-    /* Abas (Tabs) com alto contraste */
     button[data-baseweb="tab"] {
         color: #aaaaaa !important;
         font-size: 16px;
@@ -43,7 +39,6 @@ design_premium = """
         border-bottom-color: #ffcc00 !important;
         font-weight: bold;
     }
-    /* Inputs do formulário brancos para facilitar preenchimento */
     input, select, textarea {
         background-color: #262626 !important;
         color: #ffffff !important;
@@ -52,14 +47,12 @@ design_premium = """
 """
 st.markdown(design_premium, unsafe_allow_html=True)
 
-# 🦁 LOGO OFICIAL LIONBIT EM TEXTO PURO (Garante carregamento vitalício)
-# Convertido para não depender de bloqueios do Imgur
-LOGO_BASE64 = "https://unsplash.com"
+# 🦁 LOGO REAL DO LIONBIT INTEGRADA VIA LINK DIRETO
+URL_SUA_LOGO = "https://imgur.com"
 
-col_logo, col_titulo = st.columns([1, 5])
+col_logo, col_titulo = st.columns()
 with col_logo:
-    # Caso queira usar uma imagem padrão local, injetamos um leão estilizado de alta definição
-    st.image("https://imgur.com", width=120, output_format="PNG")
+    st.image(URL_SUA_LOGO, width=120)
 with col_titulo:
     st.markdown("<h1 style='color: #ffcc00; margin-bottom: 0; font-family: sans-serif; font-size: 42px;'>LionBit 3D Studio</h1>", unsafe_allow_html=True)
     st.markdown("<h3 style='color: #ffffff; margin-top: 0; font-family: sans-serif; font-weight: 300;'>Painel Integrado de Manufatura e Gestão de Vendas</h3>", unsafe_allow_html=True)
@@ -196,3 +189,8 @@ with aba_varejo:
 with aba_graficos:
     st.markdown("<h2 style='color: #ffcc00;'>📊 Comparativo Comercial de Pontos de Venda</h2>", unsafe_allow_html=True)
     if not df_varejo.empty:
+        lucro_por_loja = df_varejo.groupby("Local de Venda")["Lucro Gerado (R$)"].sum().reset_index()
+        st.write("Confira qual ponto comercial parceiro está gerando mais lucro líquido real para o seu estúdio:")
+        st.bar_chart(data=lucro_por_loja, x="Local de Venda", y="Lucro Gerado (R$)", color="#ffcc00")
+    else:
+        st.info("Cadastre dados na aba de Varejo para visualizar o ranking de lucros das lojas aqui.")
