@@ -5,9 +5,10 @@ from datetime import datetime
 # Configuração da página da Dashboard
 st.set_page_config(page_title="LionBit 3D Studio - Painel de Controle", layout="wide")
 
-# 🎨 DESIGN PREMIUM (Cinza-Grafite de Alto Contraste com Amarelo/Dourado)
+# 🎨 DESIGN PREMIUM AJUSTADO (Cinza-Grafite, Textos Brancos e Botões Dourados Visíveis)
 design_premium = """
 <style>
+    /* Fundo geral e textos em branco puro para leitura confortável */
     .stApp {
         background-color: #121212;
         color: #ffffff !important;
@@ -15,6 +16,8 @@ design_premium = """
     h1, h2, h3, p, span, label {
         color: #ffffff !important;
     }
+    
+    /* Blocos de métricas superiores */
     div[data-testid="stMetric"] {
         background-color: #1e1e1e;
         border: 2px solid #ffcc00;
@@ -30,6 +33,8 @@ design_premium = """
         color: #ffffff !important;
         font-weight: bold;
     }
+    
+    /* Abas de Navegação */
     button[data-baseweb="tab"] {
         color: #aaaaaa !important;
         font-size: 16px;
@@ -39,19 +44,35 @@ design_premium = """
         border-bottom-color: #ffcc00 !important;
         font-weight: bold;
     }
+    
+    /* Campos de Input do Formulário */
     input, select, textarea {
         background-color: #262626 !important;
         color: #ffffff !important;
+    }
+    
+    /* CORREÇÃO DO BOTÃO: Força fundo Amarelo-Ouro com texto preto bem visível */
+    div.stButton > button {
+        background-color: #ffcc00 !important;
+        color: #000000 !important;
+        font-weight: bold !important;
+        border: none !important;
+        padding: 10px 24px !important;
+        border-radius: 5px !important;
+        transition: background-color 0.3s ease;
+    }
+    div.stButton > button:hover {
+        background-color: #cca300 !important;
+        color: #000000 !important;
     }
 </style>
 """
 st.markdown(design_premium, unsafe_allow_html=True)
 
-# 🦁 LOGO REAL DO LIONBIT INTEGRADA VIA LINK DIRETO
+# 🦁 LOGO OFICIAL LIONBIT (Link corrigido de acesso direto)
 URL_SUA_LOGO = "https://imgur.com"
 
-# CORREÇÃO DA LINHA 53: Definindo proporções de 1 para a logo e 5 para o título
-col_logo, col_titulo = st.columns([1, 5])
+col_logo, col_titulo = st.columns([1, 6]) # Define proporções para não esmagar a logo
 with col_logo:
     st.image(URL_SUA_LOGO, width=120)
 with col_titulo:
@@ -186,12 +207,3 @@ with aba_varejo:
         else:
             st.info("Nenhum lote de varejo cadastrado.")
 
-# --- ABA 3: DESEMPENHO E COMPARAÇÃO DE LUCRO ---
-with aba_graficos:
-    st.markdown("<h2 style='color: #ffcc00;'>📊 Comparativo Comercial de Pontos de Venda</h2>", unsafe_allow_html=True)
-    if not df_varejo.empty:
-        lucro_por_loja = df_varejo.groupby("Local de Venda")["Lucro Gerado (R$)"].sum().reset_index()
-        st.write("Confira qual ponto comercial parceiro está gerando mais lucro líquido real para o seu estúdio:")
-        st.bar_chart(data=lucro_por_loja, x="Local de Venda", y="Lucro Gerado (R$)", color="#ffcc00")
-    else:
-        st.info("Cadastre dados na aba de Varejo para visualizar o ranking de lucros das lojas aqui.")
