@@ -20,7 +20,7 @@ HEADERS = {
     "Prefer": "return=representation"
 }
 
-# 🎨 DESIGN PREMIUM (Cinza-Grafite de Alto Contraste, Fontes Claras e Botões Dourados)
+# 🎨 DESIGN PREMIUM (Correção do Menu Flutuante de Edição de Tabela)
 design_premium = """
 <style>
     .stApp { background-color: #121212; color: #ffffff !important; }
@@ -38,6 +38,20 @@ design_premium = """
     li[role="option"]:hover { background-color: #ffcc00 !important; color: #000000 !important; }
     .stFormSubmitButton > button { background-color: #ffcc00 !important; color: #000000 !important; font-weight: bold !important; border: 2px solid #ffcc00 !important; border-radius: 5px !important; width: 100% !important; padding: 10px 0px !important; }
     .stFormSubmitButton > button:hover { background-color: #e6b800 !important; color: #000000 !important; border-color: #e6b800 !important; }
+    
+    /* 📋 CORREÇÃO CRÍTICA DO MENU FLUTUANTE DE EDIÇÃO DA TABELA */
+    div[data-testid="stTableEditor"], div.glide-data-grid, .gdg-elements {
+        background-color: #1a1a1a !important;
+    }
+    /* Altera o fundo do balãozinho de seleção interna da tabela */
+    div[class*="popover"], div[class*="dropdown"], div[class*="menu"] {
+        background-color: #1e1e1e !important;
+        color: #ffffff !important;
+    }
+    /* Garante que o texto selecionado dentro da célula fique preto no fundo amarelo ou visível */
+    span[class*="text"], input[class*="edit"] {
+        color: #ffffff !important;
+    }
 </style>
 """
 st.markdown(design_premium, unsafe_allow_html=True)
@@ -58,21 +72,21 @@ try:
     url_get_pedidos = f"{SUPABASE_URL}/rest/v1/encomendas?select=*"
     resposta_pedidos = requests.get(url_get_pedidos, headers=HEADERS)
     dados_p = resposta_pedidos.json() if resposta_pedidos.status_code == 200 else []
-    df_pedidos = pd.DataFrame(dados_p) if dados_p else pd.DataFrame(columns=["Cliente", "Data", "Tipo de Projeto", "Peso (g)", "Custo (R$)", "Preço Venda (R$)", "Margem", "Status"])
+    df_pedidos = pd.DataFrame(dados_p) if dados_p else pd.DataFrame(columns=["id", "Cliente", "Data", "Tipo de Projeto", "Peso (g)", "Custo (R$)", "Preço Venda (R$)", "Margem", "Status"])
     if not df_pedidos.empty:
         df_pedidos = df_pedidos.rename(columns={"data_solicitacao": "Data", "tipo_projeto": "Tipo de Projeto", "peso_g": "Peso (g)", "custo_rs": "Custo (R$)", "preco_venda_rs": "Preço Venda (R$)", "margem": "Margem", "status": "Status"})
 except:
-    df_pedidos = pd.DataFrame(columns=["Cliente", "Data", "Tipo de Projeto", "Peso (g)", "Custo (R$)", "Preço Venda (R$)", "Margem", "Status"])
+    df_pedidos = pd.DataFrame(columns=["id", "Cliente", "Data", "Tipo de Projeto", "Peso (g)", "Custo (R$)", "Preço Venda (R$)", "Margem", "Status"])
 
 try:
     url_get_varejo = f"{SUPABASE_URL}/rest/v1/varejo?select=*"
     resposta_varejo = requests.get(url_get_varejo, headers=HEADERS)
     dados_v = resposta_varejo.json() if resposta_varejo.status_code == 200 else []
-    df_varejo = pd.DataFrame(dados_v) if dados_v else pd.DataFrame(columns=["Produto", "Local de Venda", "Quantidade Enviada", "Quantidade Vendida", "Peso Unit. (g)", "Custo Unit. (R$)", "Preço Unit. Venda (R$)"])
+    df_varejo = pd.DataFrame(dados_v) if dados_v else pd.DataFrame(columns=["id", "Produto", "Local de Venda", "Quantidade Enviada", "Quantidade Vendida", "Peso Unit. (g)", "Custo Unit. (R$)", "Preço Unit. Venda (R$)"])
     if not df_varejo.empty:
         df_varejo = df_varejo.rename(columns={"produto": "Produto", "local_venda": "Local de Venda", "qtd_enviada": "Quantidade Enviada", "qtd_vendida": "Quantidade Vendida", "peso_unit_g": "Peso Unit. (g)", "custo_unit_rs": "Custo Unit. (R$)", "preco_unit_venda_rs": "Preço Unit. Venda (R$)"})
 except:
-    df_varejo = pd.DataFrame(columns=["Produto", "Local de Venda", "Quantidade Enviada", "Quantidade Vendida", "Peso Unit. (g)", "Custo Unit. (R$)", "Preço Unit. Venda (R$)"])
+    df_varejo = pd.DataFrame(columns=["id", "Produto", "Local de Venda", "Quantidade Enviada", "Quantidade Vendida", "Peso Unit. (g)", "Custo Unit. (R$)", "Preço Unit. Venda (R$)"])
 
 # --- ÁREA DE MÉTRICAS GLOBAIS ---
 custo_pedidos = df_pedidos["Custo (R$)"].sum() if not df_pedidos.empty else 0.0
@@ -107,7 +121,6 @@ aba_producao, aba_varejo, aba_graficos = st.tabs(["🏭 Fluxo de Encomendas", "�
 # --- ABA 1: FLUXO DE ENCOMENDAS ---
 with aba_producao:
     st.markdown("<h2 style='color: #ffcc00;'>📋 Gestão de Encomendas Ativas</h2>", unsafe_allow_html=True)
-    # AJUSTE VISUAL: Formulário encurtado (proporção 1) e Cronograma expandido (proporção 2)
     col_form, col_tab = st.columns([1, 2])
     
     with col_form:
@@ -136,20 +149,15 @@ with aba_producao:
     with col_tab:
         st.write("### 🔍 Cronograma Prontuário")
         filtro_status = st.multiselect("Filtrar por Status:", ["Pendente", "Imprimindo", "Concluído"], default=["Pendente", "Imprimindo"])
+        
+        # Filtra os dados
         df_pedidos_filtrado = df_pedidos[df_pedidos["Status"].isin(filtro_status)] if not df_pedidos.empty else df_pedidos
-        st.dataframe(df_pedidos_filtrado, use_container_width=True)
-
-# --- ABA 2: ESTOQUE E COMÉRCIO VAREJO ---
-with aba_varejo:
-    st.markdown("<h2 style='color: #ffcc00;'>🏪 Produtos em Comércio (Varejo / Consignação)</h2>", unsafe_allow_html=True)
-    # AJUSTE VISUAL: Formulário de Varejo também encurtado (proporção 1 para 2)
-    col_form2, col_tab2 = st.columns([1, 2])
-    
-    with col_form2:
-        st.write("### ➕ Cadastrar Lote no Varejo")
-        with st.form("form_varejo", clear_on_submit=True):
-            produto = st.text_input("Nome do Produto")
-            local = st.text_input("Loja Parceira / Ponto de Venda")
-            qtd_enviada = st.number_input("Qtd Enviada para a Loja", min_value=1, step=1)
-            qtd_vendida = st.number_input("Qtd Já Vendida pela Loja", min_value=0, max_value=int(qtd_enviada if qtd_enviada > 0 else 1), step=1)
-            peso_unit = st.number_input("Peso de 1 Unidade (g)", min_value=0.0, step=1.0)
+        
+        if not df_pedidos_filtrado.empty:
+            # st.data_editor transforma a tabela em um painel interativo de edição
+            tabela_editavel = st.data_editor(
+                df_pedidos_filtrado,
+                column_config={
+                    "id": None, # Esconde o ID técnico do banco de dados
+                    "Status": st.column_config.SelectboxColumn("Status", options=["Pendente", "Imprimindo", "Concluído"], required=True)
+                },
