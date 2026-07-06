@@ -39,7 +39,7 @@ design_premium = """
     .stFormSubmitButton > button { background-color: #ffcc00 !important; color: #000000 !important; font-weight: bold !important; border: 2px solid #ffcc00 !important; border-radius: 5px !important; width: 100% !important; padding: 10px 0px !important; }
     .stFormSubmitButton > button:hover { background-color: #e6b800 !important; color: #000000 !important; border-color: #e6b800 !important; }
     
-    /* 📋 CORREÇÃO DO MENU FLUTUANTE DE EDIÇÃO DA TABELA */
+    /* 📋 CORREÇÃO CRÍTICA DO MENU FLUTUANTE DE EDIÇÃO DA TABELA */
     div[data-testid="stTableEditor"], div.glide-data-grid, .gdg-elements {
         background-color: #1a1a1a !important;
     }
@@ -57,8 +57,7 @@ st.markdown(design_premium, unsafe_allow_html=True)
 # 🦁 LOGO REAL DO LIONBIT
 URL_SUA_LOGO = "logo.png"
 
-# 🔥 FUNÇÃO DE LEITURA COM LIMPEZA DE CACHE AUTOMÁTICA
-@st.fragment
+# 🔥 FUNÇÃO DE LEITURA COM REFRESH AUTOMÁTICO DE NUVEM
 def carregar_dados_nuvem():
     try:
         url_get_pedidos = f"{SUPABASE_URL}/rest/v1/encomendas?select=*"
@@ -85,7 +84,7 @@ def carregar_dados_nuvem():
 # Carrega os dados frescos da nuvem
 df_pedidos, df_varejo = carregar_dados_nuvem()
 
-col_logo, col_titulo = st.columns([1, 4]) 
+col_logo, col_titulo = st.columns([1, 5]) 
 with col_logo:
     try: st.image(URL_SUA_LOGO, width=120)
     except: st.write("🦁 [Logo]")
