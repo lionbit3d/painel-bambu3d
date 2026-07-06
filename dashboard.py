@@ -57,8 +57,8 @@ st.markdown(design_premium, unsafe_allow_html=True)
 # 🦁 LOGO REAL DO LIONBIT
 URL_SUA_LOGO = "logo.png"
 
-# Puxa o topo com duas colunas estendidas para o título
-col_logo, col_titulo = st.columns([1, 5]) 
+# Colunas do topo divididas de forma explícita
+col_logo, col_titulo = st.columns([1, 6]) 
 with col_logo:
     try: st.image(URL_SUA_LOGO, width=120)
     except: st.write("🦁 [Logo]")
@@ -120,8 +120,8 @@ aba_producao, aba_varejo, aba_graficos = st.tabs(["🏭 Fluxo de Encomendas", "�
 # --- ABA 1: FLUXO DE ENCOMENDAS ---
 with aba_producao:
     st.markdown("<h2 style='color: #ffcc00;'>📋 Gestão de Encomendas Ativas</h2>", unsafe_allow_html=True)
-    # Define proporção explícita de 1 para o formulário e 2 para a tabela
-    col_form, col_tab = st.columns([1, 2])
+    # Proporções explícitas fixadas: 1 parte para o formulário e 2.5 partes para a tabela
+    col_form, col_tab = st.columns([1, 2.5])
     
     with col_form:
         st.write("### ➕ Nova Encomenda")
@@ -149,7 +149,6 @@ with aba_producao:
     with col_tab:
         st.write("### 🔍 Cronograma Prontuário")
         filtro_status = st.multiselect("Filtrar por Status:", ["Pendente", "Imprimindo", "Concluído"], default=["Pendente", "Imprimindo"])
-        
         df_pedidos_filtrado = df_pedidos[df_pedidos["Status"].isin(filtro_status)] if not df_pedidos.empty else df_pedidos
         
         if not df_pedidos_filtrado.empty:
