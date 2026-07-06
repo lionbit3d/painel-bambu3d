@@ -43,12 +43,10 @@ design_premium = """
     div[data-testid="stTableEditor"], div.glide-data-grid, .gdg-elements {
         background-color: #1a1a1a !important;
     }
-    /* Altera o fundo do balãozinho de seleção interna da tabela */
     div[class*="popover"], div[class*="dropdown"], div[class*="menu"] {
         background-color: #1e1e1e !important;
         color: #ffffff !important;
     }
-    /* Garante que o texto selecionado dentro da célula fique preto no fundo amarelo ou visível */
     span[class*="text"], input[class*="edit"] {
         color: #ffffff !important;
     }
@@ -121,7 +119,7 @@ aba_producao, aba_varejo, aba_graficos = st.tabs(["🏭 Fluxo de Encomendas", "�
 # --- ABA 1: FLUXO DE ENCOMENDAS ---
 with aba_producao:
     st.markdown("<h2 style='color: #ffcc00;'>📋 Gestão de Encomendas Ativas</h2>", unsafe_allow_html=True)
-    col_form, col_tab = st.columns([1, 2])
+    col_form, col_tab = st.columns()
     
     with col_form:
         st.write("### ➕ Nova Encomenda")
@@ -150,14 +148,17 @@ with aba_producao:
         st.write("### 🔍 Cronograma Prontuário")
         filtro_status = st.multiselect("Filtrar por Status:", ["Pendente", "Imprimindo", "Concluído"], default=["Pendente", "Imprimindo"])
         
-        # Filtra os dados
         df_pedidos_filtrado = df_pedidos[df_pedidos["Status"].isin(filtro_status)] if not df_pedidos.empty else df_pedidos
         
         if not df_pedidos_filtrado.empty:
-            # st.data_editor transforma a tabela em um painel interativo de edição
             tabela_editavel = st.data_editor(
                 df_pedidos_filtrado,
                 column_config={
-                    "id": None, # Esconde o ID técnico do banco de dados
+                    "id": None, 
                     "Status": st.column_config.SelectboxColumn("Status", options=["Pendente", "Imprimindo", "Concluído"], required=True)
                 },
+                disabled=["Cliente", "Data", "Tipo de Projeto", "Peso (g)", "Custo (R$)", "Preço Venda (R$)", "Margem"],
+                use_container_width=True,
+                key="editor_encomendas"
+            )
+            
