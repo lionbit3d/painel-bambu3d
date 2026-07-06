@@ -5,7 +5,7 @@ from datetime import datetime
 # Configuração da página da Dashboard
 st.set_page_config(page_title="LionBit 3D Studio - Painel de Controle", layout="wide")
 
-# 🎨 DESIGN PREMIUM CORRIGIDO (Correção total do Multiselect e Caixas de Seleção)
+# 🎨 DESIGN PREMIUM (Cinza-Grafite de Alto Contraste, Fontes Claras e Botões Dourados)
 design_premium = """
 <style>
     /* Fundo geral grafite escuro com textos normais em BRANCO PURO */
@@ -222,4 +222,3 @@ with aba_varejo:
             if st.form_submit_button("Registrar no Varejo"):
                 if produto and local and peso_unit > 0:
                     custo_u = peso_unit * 0.15
-                    novo_lote = {
