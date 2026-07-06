@@ -73,9 +73,8 @@ st.markdown(design_premium, unsafe_allow_html=True)
 # 🦁 LOGO REAL E DIRETAMENTE INTEGRADA DO LIONBIT
 URL_SUA_LOGO = "https://imgur.com"
 
-col_logo, col_titulo = st.columns([1, 5])
+col_logo, col_titulo = st.columns([1, 6])
 with col_logo:
-    # Carrega a imagem direto do arquivo PNG limpo do Imgur
     st.image(URL_SUA_LOGO, width=120)
 with col_titulo:
     st.markdown("<h1 style='color: #ffcc00; margin-bottom: 0; font-family: sans-serif; font-size: 42px;'>LionBit 3D Studio</h1>", unsafe_allow_html=True)
@@ -207,3 +206,5 @@ with aba_varejo:
             df_varejo_exibicao["Estoque Atual na Loja"] = df_varejo_exibicao["Quantidade Enviada"] - df_varejo_exibicao["Quantidade Vendida"]
             st.dataframe(df_varejo_exibicao[["Produto", "Local de Venda", "Quantidade Enviada", "Quantidade Vendida", "Estoque Atual na Loja", "Custo Unit. (R$)", "Preço Unit. Venda (R$)", "Lucro Gerado (R$)"]], use_container_width=True)
         else:
+            st.info("Nenhum lote de varejo cadastrado.")
+
