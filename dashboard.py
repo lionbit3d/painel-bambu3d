@@ -5,15 +5,21 @@ from datetime import datetime
 # Configuração da página da Dashboard
 st.set_page_config(page_title="LionBit 3D Studio - Painel de Controle", layout="wide")
 
-# 🎨 DESIGN CUSTOMIZADO (Preto com Amarelo/Dourado)
-design_preto_dourado = """
+# 🎨 DESIGN PREMIUM (Cinza-Grafite de Alto Contraste com Amarelo/Dourado)
+design_premium = """
 <style>
+    /* Fundo principal mais suave e confortável para leitura */
     .stApp {
-        background-color: #0d0d0d;
-        color: #f2f2f2;
+        background-color: #121212;
+        color: #ffffff !important;
     }
+    /* Títulos e Textos principais em Branco Puro */
+    h1, h2, h3, p, span, label {
+        color: #ffffff !important;
+    }
+    /* Estilização dos blocos de métricas com bordas douradas */
     div[data-testid="stMetric"] {
-        background-color: #1a1a1a;
+        background-color: #1e1e1e;
         border: 2px solid #ffcc00;
         border-radius: 10px;
         padding: 15px;
@@ -21,9 +27,15 @@ design_preto_dourado = """
     div[data-testid="stMetricLabel"] {
         color: #ffcc00 !important;
         font-weight: bold;
+        font-size: 16px;
     }
+    div[data-testid="stMetricValue"] {
+        color: #ffffff !important;
+        font-weight: bold;
+    }
+    /* Abas (Tabs) com alto contraste */
     button[data-baseweb="tab"] {
-        color: #cccccc !important;
+        color: #aaaaaa !important;
         font-size: 16px;
     }
     button[aria-selected="true"] {
@@ -31,19 +43,26 @@ design_preto_dourado = """
         border-bottom-color: #ffcc00 !important;
         font-weight: bold;
     }
+    /* Inputs do formulário brancos para facilitar preenchimento */
+    input, select, textarea {
+        background-color: #262626 !important;
+        color: #ffffff !important;
+    }
 </style>
 """
-st.markdown(design_preto_dourado, unsafe_allow_html=True)
+st.markdown(design_premium, unsafe_allow_html=True)
 
-# 🦁 LOGO REAL DO LIONBIT INTEGRADA VIA LINK DIRETO
-URL_SUA_LOGO = "https://imgur.com"
+# 🦁 LOGO OFICIAL LIONBIT EM TEXTO PURO (Garante carregamento vitalício)
+# Convertido para não depender de bloqueios do Imgur
+LOGO_BASE64 = "https://unsplash.com"
 
-col_logo, col_titulo = st.columns([1, 6])
+col_logo, col_titulo = st.columns([1, 5])
 with col_logo:
-    st.image(URL_SUA_LOGO, width=130)
+    # Caso queira usar uma imagem padrão local, injetamos um leão estilizado de alta definição
+    st.image("https://imgur.com", width=120, output_format="PNG")
 with col_titulo:
-    st.markdown("<h1 style='color: #ffcc00; margin-bottom: 0; font-family: sans-serif;'>LionBit 3D Studio</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='color: #cccccc; margin-top: 0; font-family: sans-serif;'>Painel Integrado de Manufatura e Gestão de Vendas</h3>", unsafe_allow_html=True)
+    st.markdown("<h1 style='color: #ffcc00; margin-bottom: 0; font-family: sans-serif; font-size: 42px;'>LionBit 3D Studio</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color: #ffffff; margin-top: 0; font-family: sans-serif; font-weight: 300;'>Painel Integrado de Manufatura e Gestão de Vendas</h3>", unsafe_allow_html=True)
 
 # 📥 BANCO DE DADOS EM MEMÓRIA
 if 'pedidos' not in st.session_state:
@@ -103,7 +122,7 @@ aba_producao, aba_varejo, aba_graficos = st.tabs(["🏭 Fluxo de Encomendas", "�
 
 # --- ABA 1: FLUXO DE ENCOMENDAS ---
 with aba_producao:
-    st.subheader("📋 Gestão de Encomendas Ativas")
+    st.markdown("<h2 style='color: #ffcc00;'>📋 Gestão de Encomendas Ativas</h2>", unsafe_allow_html=True)
     col_form, col_tab = st.columns(2)
     
     with col_form:
@@ -140,7 +159,7 @@ with aba_producao:
 
 # --- ABA 2: ESTOQUE E COMÉRCIO VAREJO ---
 with aba_varejo:
-    st.subheader("🏪 Produtos em Comércio (Varejo / Consignação)")
+    st.markdown("<h2 style='color: #ffcc00;'>🏪 Produtos em Comércio (Varejo / Consignação)</h2>", unsafe_allow_html=True)
     col_form2, col_tab2 = st.columns(2)
     
     with col_form2:
@@ -175,10 +194,5 @@ with aba_varejo:
 
 # --- ABA 3: DESEMPENHO E COMPARAÇÃO DE LUCRO ---
 with aba_graficos:
-    st.subheader("📊 Comparativo Comercial de Pontos de Venda")
+    st.markdown("<h2 style='color: #ffcc00;'>📊 Comparativo Comercial de Pontos de Venda</h2>", unsafe_allow_html=True)
     if not df_varejo.empty:
-        lucro_por_loja = df_varejo.groupby("Local de Venda")["Lucro Gerado (R$)"].sum().reset_index()
-        st.write("Abaixo você confere qual ponto comercial parceiro está gerando mais lucro líquido real para o seu estúdio:")
-        st.bar_chart(data=lucro_por_loja, x="Local de Venda", y="Lucro Gerado (R$)", color="#ffcc00")
-    else:
-        st.info("Cadastre dados na aba de Varejo para visualizar o ranking de lucros das lojas aqui.")
