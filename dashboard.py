@@ -9,8 +9,8 @@ st.set_page_config(page_title="LionBit 3D Studio - Painel de Controle", layout="
 # ==============================================================================
 # 🔑 CONEXÃO COM O BANCO DE DADOS EM NUVEM (SUPABASE)
 # ==============================================================================
-SUPABASE_URL = "https://supabase.co"
-SUPABASE_KEY = "COLE_AQUI_A_SUA_CHAVE_ANON_PUBLIC_GIGANTE"
+SUPABASE_URL = "https://ntybsaywkdmqcjhslehw.supabase.co/rest/v1/"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50eWJzYXl3a2RtcWNqaHNsZWh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNTQwMjgsImV4cCI6MjA5ODkzMDAyOH0.0pV_Lu60COGdjBCuVVSmqf2TNqH3I_0xlLSeJckenzA"
 
 # Inicializa a conexão com o banco de dados permanente
 @st.cache_resource
