@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from supabase import create_client, Client
+from supabase.lib.client_options import ClientOptions
 import httpx
 
 # Configuração da página da Dashboard
@@ -13,11 +14,14 @@ st.set_page_config(page_title="LionBit 3D Studio - Painel de Controle", layout="
 SUPABASE_URL = "https://ntybsaywkdmqcjhslehw.supabase.co/"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50eWJzYXl3a2RtcWNqaHNsZWh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNTQwMjgsImV4cCI6MjA5ODkzMDAyOH0.0pV_Lu60COGdjBCuVVSmqf2TNqH3I_0xlLSeJckenzA"
 
-# 🛡️ INICIALIZAÇÃO BLINDADA: Ignora os proxies ocultos do Streamlit Cloud
+# 🛡️ INICIALIZAÇÃO BLINDADA: Contorna o proxy do Streamlit usando as regras corretas do ClientOptions
 @st.cache_resource
 def iniciar_banco():
+    # Cria o transporte HTTP limpo sem os proxies que travam a nuvem
     cliente_limpo = httpx.Client(proxies={})
-    return create_client(SUPABASE_URL, SUPABASE_KEY, http_client=cliente_limpo)
+    # Configura as opções do cliente injetando o transporte limpo de forma correta
+    opcoes = ClientOptions(http_client=cliente_limpo)
+    return create_client(SUPABASE_URL, SUPABASE_KEY, options=opcoes)
 
 try:
     supabase = iniciar_banco()
@@ -152,6 +156,3 @@ with aba_varejo:
             peso_unit = st.number_input("Peso de 1 Unidade (g)", min_value=0.0, step=1.0)
             preco_loja = st.number_input("Preço Cobrado no Varejo (R$)", min_value=0.0, step=1.0)
             
-            if st.form_submit_button("Registrar no Varejo"):
-                if produto and local and peso_unit > 0:
-                    custo_u = peso_unit * 0.15
