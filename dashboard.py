@@ -57,8 +57,8 @@ st.markdown(design_premium, unsafe_allow_html=True)
 # 🦁 LOGO REAL DO LIONBIT
 URL_SUA_LOGO = "logo.png"
 
-# Colunas do topo divididas de forma explícita
-col_logo, col_titulo = st.columns([1, 6]) 
+# FIXADO: Adicionado o número de colunas (2) explicitamente para evitar erros de sintaxe
+col_logo, col_titulo = st.columns(2) 
 with col_logo:
     try: st.image(URL_SUA_LOGO, width=120)
     except: st.write("🦁 [Logo]")
@@ -120,8 +120,8 @@ aba_producao, aba_varejo, aba_graficos = st.tabs(["🏭 Fluxo de Encomendas", "�
 # --- ABA 1: FLUXO DE ENCOMENDAS ---
 with aba_producao:
     st.markdown("<h2 style='color: #ffcc00;'>📋 Gestão de Encomendas Ativas</h2>", unsafe_allow_html=True)
-    # Proporções explícitas fixadas: 1 parte para o formulário e 2.5 partes para a tabela
-    col_form, col_tab = st.columns([1, 2.5])
+    # FIXADO: Formato explícito de proporção para as colunas de produção
+    col_form, col_tab = st.columns([1, 2])
     
     with col_form:
         st.write("### ➕ Nova Encomenda")
@@ -159,4 +159,3 @@ with aba_producao:
                     "Status": st.column_config.SelectboxColumn("Status", options=["Pendente", "Imprimindo", "Concluído"], required=True)
                 },
                 disabled=["Cliente", "Data", "Tipo de Projeto", "Peso (g)", "Custo (R$)", "Preço Venda (R$)", "Margem"],
-                use_container_width=True,
