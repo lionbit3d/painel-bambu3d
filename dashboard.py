@@ -5,20 +5,15 @@ from datetime import datetime
 # Configuração da página da Dashboard
 st.set_page_config(page_title="LionBit 3D Studio - Painel de Controle", layout="wide")
 
-# 🎨 DESIGN PREMIUM CORRIGIDO (Contraste Máximo com Fontes Brancas e Botões Ouro)
+# 🎨 DESIGN PREMIUM CORRIGIDO (Correção total do Multiselect e Caixas de Seleção)
 design_premium = """
 <style>
-    /* Fundo geral grafite escuro com textos forçados em BRANCO PURO */
+    /* Fundo geral grafite escuro com textos normais em BRANCO PURO */
     .stApp {
         background-color: #121212;
         color: #ffffff !important;
     }
-    h1, h2, h3, p, span, label, th, td, div {
-        color: #ffffff !important;
-    }
-    
-    /* Força os rótulos de formulários a ficarem visíveis em branco */
-    .stWidgetFormLabel > div {
+    h1, h2, h3, p, span, label, th, td {
         color: #ffffff !important;
     }
     
@@ -50,10 +45,38 @@ design_premium = """
         font-weight: bold;
     }
     
-    /* Caixas de Entrada de Texto e Seleção */
-    input, select, textarea {
+    /* Caixas de Entrada de Texto e Seleção de Formulário */
+    .stTextInput input, .stSelectbox select, .stNumberInput input {
         background-color: #262626 !important;
         color: #ffffff !important;
+        border: 1px solid #ffcc00 !important;
+    }
+    
+    /* CORREÇÃO DO MULTISELECT E CAIXAS DE OPÇÃO (Filtrar por Status) */
+    /* Fundo da barra do filtro quando fechada */
+    div[data-baseweb="select"] {
+        background-color: #262626 !important;
+        border-radius: 4px !important;
+    }
+    /* Texto das tags que ficam dentro da barra */
+    div[role="button"] {
+        background-color: #1e1e1e !important;
+        color: #ffffff !important;
+        border: 1px solid #ffcc00 !important;
+    }
+    /* Fundo da caixinha suspensa que abre com as opções */
+    ul[role="listbox"] {
+        background-color: #1e1e1e !important;
+    }
+    /* Texto das opções dentro da caixinha suspensa */
+    li[role="option"] {
+        color: #ffffff !important;
+        background-color: #1e1e1e !important;
+    }
+    /* Cor quando passamos o mouse por cima da opção na lista */
+    li[role="option"]:hover {
+        background-color: #ffcc00 !important;
+        color: #000000 !important;
     }
     
     /* BOTÃO EM FORMULÁRIOS: Fundo ouro com letra preta grossa garantida */
@@ -75,14 +98,14 @@ design_premium = """
 """
 st.markdown(design_premium, unsafe_allow_html=True)
 
-# 🦁 LOGO REAL DO LIONBIT (Puxando de forma segura da raiz do seu GitHub)
-col_logo, col_titulo = st.columns([1, 5]) # Dá o espaçamento correto no topo
+# 🦁 LOGO REAL DO LIONBIT
+URL_SUA_LOGO = "logo.png"
+
+col_logo, col_titulo = st.columns() 
 with col_logo:
     try:
-        # Lê o arquivo local enviado para o GitHub
-        st.image("logo.png", width=120)
+        st.image(URL_SUA_LOGO, width=120)
     except:
-        # Caso o arquivo mude de nome, mostra o emoji sem travar o sistema
         st.write("🦁 [Logo]")
 with col_titulo:
     st.markdown("<h1 style='color: #ffcc00; margin-bottom: 0; font-family: sans-serif; font-size: 42px;'>LionBit 3D Studio</h1>", unsafe_allow_html=True)
@@ -200,14 +223,3 @@ with aba_varejo:
                 if produto and local and peso_unit > 0:
                     custo_u = peso_unit * 0.15
                     novo_lote = {
-                        "Produto": produto, "Local de Venda": local, "Quantidade Enviada": qtd_enviada, 
-                        "Quantidade Vendida": qtd_vendida, "Peso Unit. (g)": peso_unit, 
-                        "Custo Unit. (R$)": round(custo_u, 2), "Preço Unit. Venda (R$)": round(preco_loja, 2)
-                    }
-                    st.session_state.varejo = pd.concat([st.session_state.varejo, pd.DataFrame([novo_lote])], ignore_index=True)
-                    st.rerun()
-
-    with col_tab2:
-        st.write("### 📊 Relatório de Itens em Lojas Externas")
-        if not df_varejo.empty:
-            df_varejo_exibicao = df_varejo.copy()
