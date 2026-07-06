@@ -1,13 +1,13 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import requests  # Usamos requisições diretas de internet, 100% livre de bugs de biblioteca!
+import requests
 
 # Configuração da página da Dashboard
 st.set_page_config(page_title="LionBit 3D Studio - Painel de Controle", layout="wide")
 
 # ==============================================================================
-# 🔑 CONEXÃO DIRETA COM O BANCO DE DADOS EM NUVEM (SUPABASE)
+# 🔑 CONEXÃO DIRETA COM O BANCO DE DADOS EM NUVEM (SUPABASE VIA API HTTP)
 # ==============================================================================
 SUPABASE_URL = "https://ntybsaywkdmqcjhslehw.supabase.co/"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50eWJzYXl3a2RtcWNqaHNsZWh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNTQwMjgsImV4cCI6MjA5ODkzMDAyOH0.0pV_Lu60COGdjBCuVVSmqf2TNqH3I_0xlLSeJckenzA"
@@ -154,3 +154,5 @@ with aba_varejo:
             preco_loja = st.number_input("Preço Cobrado no Varejo (R$)", min_value=0.0, step=1.0)
             
             if st.form_submit_button("Registrar no Varejo"):
+                if produto and local and peso_unit > 0:
+                    custo_u = peso_unit * 0.15
