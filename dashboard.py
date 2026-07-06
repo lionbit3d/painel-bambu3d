@@ -20,7 +20,7 @@ HEADERS = {
     "Prefer": "return=representation"
 }
 
-# 🎨 DESIGN PREMIUM (Correção do Menu Flutuante de Edição de Tabela)
+# 🎨 DESIGN PREMIUM (Cinza-Grafite de Alto Contraste, Fontes Claras e Botões Dourados)
 design_premium = """
 <style>
     .stApp { background-color: #121212; color: #ffffff !important; }
@@ -39,7 +39,7 @@ design_premium = """
     .stFormSubmitButton > button { background-color: #ffcc00 !important; color: #000000 !important; font-weight: bold !important; border: 2px solid #ffcc00 !important; border-radius: 5px !important; width: 100% !important; padding: 10px 0px !important; }
     .stFormSubmitButton > button:hover { background-color: #e6b800 !important; color: #000000 !important; border-color: #e6b800 !important; }
     
-    /* 📋 CORREÇÃO CRÍTICA DO MENU FLUTUANTE DE EDIÇÃO DA TABELA */
+    /* 📋 CORREÇÃO DO MENU FLUTUANTE DE EDIÇÃO DA TABELA */
     div[data-testid="stTableEditor"], div.glide-data-grid, .gdg-elements {
         background-color: #1a1a1a !important;
     }
@@ -57,34 +57,41 @@ st.markdown(design_premium, unsafe_allow_html=True)
 # 🦁 LOGO REAL DO LIONBIT
 URL_SUA_LOGO = "logo.png"
 
-col_logo, col_titulo = st.columns(2) 
+# 🔥 FUNÇÃO DE LEITURA COM LIMPEZA DE CACHE AUTOMÁTICA
+@st.fragment
+def carregar_dados_nuvem():
+    try:
+        url_get_pedidos = f"{SUPABASE_URL}/rest/v1/encomendas?select=*"
+        resposta_pedidos = requests.get(url_get_pedidos, headers=HEADERS)
+        dados_p = resposta_pedidos.json() if resposta_pedidos.status_code == 200 else []
+        df_p = pd.DataFrame(dados_p) if dados_p else pd.DataFrame(columns=["id", "Cliente", "Data", "Tipo de Projeto", "Peso (g)", "Custo (R$)", "Preço Venda (R$)", "Margem", "Status"])
+        if not df_p.empty:
+            df_p = df_p.rename(columns={"data_solicitacao": "Data", "tipo_projeto": "Tipo de Projeto", "peso_g": "Peso (g)", "custo_rs": "Custo (R$)", "preco_venda_rs": "Preço Venda (R$)", "margem": "Margem", "status": "Status"})
+    except:
+        df_p = pd.DataFrame(columns=["id", "Cliente", "Data", "Tipo de Projeto", "Peso (g)", "Custo (R$)", "Preço Venda (R$)", "Margem", "Status"])
+
+    try:
+        url_get_varejo = f"{SUPABASE_URL}/rest/v1/varejo?select=*"
+        resposta_varejo = requests.get(url_get_varejo, headers=HEADERS)
+        dados_v = resposta_varejo.json() if resposta_varejo.status_code == 200 else []
+        df_v = pd.DataFrame(dados_v) if dados_v else pd.DataFrame(columns=["id", "Produto", "Local de Venda", "Quantidade Enviada", "Quantidade Vendida", "Peso Unit. (g)", "Custo Unit. (R$)", "Preço Unit. Venda (R$)"])
+        if not df_v.empty:
+            df_v = df_v.rename(columns={"produto": "Produto", "local_venda": "Local de Venda", "qtd_enviada": "Quantidade Enviada", "qtd_vendida": "Quantidade Vendida", "peso_unit_g": "Peso Unit. (g)", "custo_unit_rs": "Custo Unit. (R$)", "preco_unit_venda_rs": "Preço Unit. Venda (R$)"})
+    except:
+        df_v = pd.DataFrame(columns=["id", "Produto", "Local de Venda", "Quantidade Enviada", "Quantidade Vendida", "Peso Unit. (g)", "Custo Unit. (R$)", "Preço Unit. Venda (R$)"])
+    
+    return df_p, df_v
+
+# Carrega os dados frescos da nuvem
+df_pedidos, df_varejo = carregar_dados_nuvem()
+
+col_logo, col_titulo = st.columns([1, 4]) 
 with col_logo:
     try: st.image(URL_SUA_LOGO, width=120)
     except: st.write("🦁 [Logo]")
 with col_titulo:
     st.markdown("<h1 style='color: #ffcc00; margin-bottom: 0; font-family: sans-serif; font-size: 42px;'>LionBit 3D Studio</h1>", unsafe_allow_html=True)
     st.markdown("<h3 style='color: #ffffff; margin-top: 0; font-family: sans-serif; font-weight: 300;'>Painel Integrado de Manufatura e Gestão de Vendas</h3>", unsafe_allow_html=True)
-
-# 📥 LEITURA DOS DADOS EM TEMPO REAL VIA API HTTP PURA
-try:
-    url_get_pedidos = f"{SUPABASE_URL}/rest/v1/encomendas?select=*"
-    resposta_pedidos = requests.get(url_get_pedidos, headers=HEADERS)
-    dados_p = resposta_pedidos.json() if resposta_pedidos.status_code == 200 else []
-    df_pedidos = pd.DataFrame(dados_p) if dados_p else pd.DataFrame(columns=["id", "Cliente", "Data", "Tipo de Projeto", "Peso (g)", "Custo (R$)", "Preço Venda (R$)", "Margem", "Status"])
-    if not df_pedidos.empty:
-        df_pedidos = df_pedidos.rename(columns={"data_solicitacao": "Data", "tipo_projeto": "Tipo de Projeto", "peso_g": "Peso (g)", "custo_rs": "Custo (R$)", "preco_venda_rs": "Preço Venda (R$)", "margem": "Margem", "status": "Status"})
-except:
-    df_pedidos = pd.DataFrame(columns=["id", "Cliente", "Data", "Tipo de Projeto", "Peso (g)", "Custo (R$)", "Preço Venda (R$)", "Margem", "Status"])
-
-try:
-    url_get_varejo = f"{SUPABASE_URL}/rest/v1/varejo?select=*"
-    resposta_varejo = requests.get(url_get_varejo, headers=HEADERS)
-    dados_v = resposta_varejo.json() if resposta_varejo.status_code == 200 else []
-    df_varejo = pd.DataFrame(dados_v) if dados_v else pd.DataFrame(columns=["id", "Produto", "Local de Venda", "Quantidade Enviada", "Quantidade Vendida", "Peso Unit. (g)", "Custo Unit. (R$)", "Preço Unit. Venda (R$)"])
-    if not df_varejo.empty:
-        df_varejo = df_varejo.rename(columns={"produto": "Produto", "local_venda": "Local de Venda", "qtd_enviada": "Quantidade Enviada", "qtd_vendida": "Quantidade Vendida", "peso_unit_g": "Peso Unit. (g)", "custo_unit_rs": "Custo Unit. (R$)", "preco_unit_venda_rs": "Preço Unit. Venda (R$)"})
-except:
-    df_varejo = pd.DataFrame(columns=["id", "Produto", "Local de Venda", "Quantidade Enviada", "Quantidade Vendida", "Peso Unit. (g)", "Custo Unit. (R$)", "Preço Unit. Venda (R$)"])
 
 # --- ÁREA DE MÉTRICAS GLOBAIS ---
 custo_pedidos = df_pedidos["Custo (R$)"].sum() if not df_pedidos.empty else 0.0
@@ -119,7 +126,6 @@ aba_producao, aba_varejo, aba_graficos = st.tabs(["🏭 Fluxo de Encomendas", "�
 # --- ABA 1: FLUXO DE ENCOMENDAS ---
 with aba_producao:
     st.markdown("<h2 style='color: #ffcc00;'>📋 Gestão de Encomendas Ativas</h2>", unsafe_allow_html=True)
-    # CORREÇÃO DE COLUNA: Adicionado o valor de proporção ideal [1, 2]
     col_form, col_tab = st.columns([1, 2])
     
     with col_form:
@@ -159,7 +165,3 @@ with aba_producao:
                     "Status": st.column_config.SelectboxColumn("Status", options=["Pendente", "Imprimindo", "Concluído"], required=True)
                 },
                 disabled=["Cliente", "Data", "Tipo de Projeto", "Peso (g)", "Custo (R$)", "Preço Venda (R$)", "Margem"],
-                use_container_width=True,
-                key="editor_encomendas"
-            )
-            
