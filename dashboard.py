@@ -50,7 +50,8 @@ st.markdown(design_premium, unsafe_allow_html=True)
 # 🦁 LOGO REAL DO LIONBIT INTEGRADA VIA LINK DIRETO
 URL_SUA_LOGO = "https://imgur.com"
 
-col_logo, col_titulo = st.columns()
+# CORREÇÃO DA LINHA 53: Definindo proporções de 1 para a logo e 5 para o título
+col_logo, col_titulo = st.columns([1, 5])
 with col_logo:
     st.image(URL_SUA_LOGO, width=120)
 with col_titulo:
