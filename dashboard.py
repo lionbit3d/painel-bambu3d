@@ -107,7 +107,8 @@ aba_producao, aba_varejo, aba_graficos = st.tabs(["🏭 Fluxo de Encomendas", "�
 # --- ABA 1: FLUXO DE ENCOMENDAS ---
 with aba_producao:
     st.markdown("<h2 style='color: #ffcc00;'>📋 Gestão de Encomendas Ativas</h2>", unsafe_allow_html=True)
-    col_form, col_tab = st.columns(2)
+    # AJUSTE VISUAL: Formulário encurtado (proporção 1) e Cronograma expandido (proporção 2)
+    col_form, col_tab = st.columns([1, 2])
     
     with col_form:
         st.write("### ➕ Nova Encomenda")
@@ -141,7 +142,8 @@ with aba_producao:
 # --- ABA 2: ESTOQUE E COMÉRCIO VAREJO ---
 with aba_varejo:
     st.markdown("<h2 style='color: #ffcc00;'>🏪 Produtos em Comércio (Varejo / Consignação)</h2>", unsafe_allow_html=True)
-    col_form2, col_tab2 = st.columns(2)
+    # AJUSTE VISUAL: Formulário de Varejo também encurtado (proporção 1 para 2)
+    col_form2, col_tab2 = st.columns([1, 2])
     
     with col_form2:
         st.write("### ➕ Cadastrar Lote no Varejo")
@@ -151,8 +153,3 @@ with aba_varejo:
             qtd_enviada = st.number_input("Qtd Enviada para a Loja", min_value=1, step=1)
             qtd_vendida = st.number_input("Qtd Já Vendida pela Loja", min_value=0, max_value=int(qtd_enviada if qtd_enviada > 0 else 1), step=1)
             peso_unit = st.number_input("Peso de 1 Unidade (g)", min_value=0.0, step=1.0)
-            preco_loja = st.number_input("Preço Cobrado no Varejo (R$)", min_value=0.0, step=1.0)
-            
-            if st.form_submit_button("Registrar no Varejo"):
-                if produto and local and peso_unit > 0:
-                    custo_u = peso_unit * 0.15
