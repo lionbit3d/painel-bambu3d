@@ -38,7 +38,7 @@ st.markdown(design_preto_dourado, unsafe_allow_html=True)
 # 🦁 LOGO REAL DO LIONBIT INTEGRADA VIA LINK DIRETO
 URL_SUA_LOGO = "https://imgur.com"
 
-col_logo, col_titulo = st.columns([1, 5])
+col_logo, col_titulo = st.columns([1, 6])
 with col_logo:
     st.image(URL_SUA_LOGO, width=130)
 with col_titulo:
@@ -104,16 +104,13 @@ aba_producao, aba_varejo, aba_graficos = st.tabs(["🏭 Fluxo de Encomendas", "�
 # --- ABA 1: FLUXO DE ENCOMENDAS ---
 with aba_producao:
     st.subheader("📋 Gestão de Encomendas Ativas")
-col_form, col_tab = st.columns(2)
+    col_form, col_tab = st.columns(2)
     
     with col_form:
         st.write("### ➕ Nova Encomenda")
         with st.form("form_encomenda", clear_on_submit=True):
             cliente = st.text_input("Nome do Cliente")
-            
-            # Calendário configurado no padrão PT-BR visualmente
             data_sel = st.date_input("Data de Solicitação", datetime.now(), format="DD/MM/YYYY")
-            
             lista_projetos = ["Suporte de Celular", "Letreiro de Quarto", "Boneco Articulado", "Boneco Decorativo", "Chaveiro", "Utilitário", "Utensílio Doméstico", "Peça Técnica"]
             tipo_projeto = st.selectbox("Tipo de Projeto", lista_projetos)
             peso_gramas = st.number_input("Peso em Gramas (g)", min_value=0.0, step=1.0)
@@ -125,7 +122,7 @@ col_form, col_tab = st.columns(2)
                 if cliente and peso_gramas > 0:
                     custo_calc = peso_gramas * 0.15
                     preco_calc = custo_calc * opcoes_margem[margem_texto]
-                    data_br = data_sel.strftime("%d/%m/%Y") # Salva no formato BR
+                    data_br = data_sel.strftime("%d/%m/%Y")
                     
                     nova_enc = {
                         "Cliente": cliente, "Data": data_br, "Tipo de Projeto": tipo_projeto,
@@ -180,11 +177,8 @@ with aba_varejo:
 with aba_graficos:
     st.subheader("📊 Comparativo Comercial de Pontos de Venda")
     if not df_varejo.empty:
-        # Agrupa o lucro por ponto de venda para montar o ranking
         lucro_por_loja = df_varejo.groupby("Local de Venda")["Lucro Gerado (R$)"].sum().reset_index()
-        
         st.write("Abaixo você confere qual ponto comercial parceiro está gerando mais lucro líquido real para o seu estúdio:")
-        # Gera o gráfico de barras nativo e otimizado do Streamlit
         st.bar_chart(data=lucro_por_loja, x="Local de Venda", y="Lucro Gerado (R$)", color="#ffcc00")
     else:
         st.info("Cadastre dados na aba de Varejo para visualizar o ranking de lucros das lojas aqui.")
