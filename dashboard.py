@@ -1,99 +1,45 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+from supabase import create_client, Client
 
 # Configuração da página da Dashboard
 st.set_page_config(page_title="LionBit 3D Studio - Painel de Controle", layout="wide")
 
+# ==============================================================================
+# 🔑 CONEXÃO COM O BANCO DE DADOS EM NUVEM (SUPABASE)
+# ==============================================================================
+SUPABASE_URL = "https://supabase.co"
+SUPABASE_KEY = "COLE_AQUI_A_SUA_CHAVE_ANON_PUBLIC_GIGANTE"
+
+# Inicializa a conexão com o banco de dados permanente
+@st.cache_resource
+def iniciar_banco():
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
+
+try:
+    supabase = iniciar_banco()
+except Exception as e:
+    st.error(f"Erro ao conectar com o banco de dados: {e}")
+
 # 🎨 DESIGN PREMIUM (Cinza-Grafite de Alto Contraste, Fontes Claras e Botões Dourados)
 design_premium = """
 <style>
-    /* Fundo geral grafite escuro com textos normais em BRANCO PURO */
-    .stApp {
-        background-color: #121212;
-        color: #ffffff !important;
-    }
-    h1, h2, h3, p, span, label, th, td {
-        color: #ffffff !important;
-    }
-    
-    /* Blocos de métricas superiores com borda dourada */
-    div[data-testid="stMetric"] {
-        background-color: #1e1e1e;
-        border: 2px solid #ffcc00;
-        border-radius: 10px;
-        padding: 15px;
-    }
-    div[data-testid="stMetricLabel"] {
-        color: #ffcc00 !important;
-        font-weight: bold;
-        font-size: 16px;
-    }
-    div[data-testid="stMetricValue"] {
-        color: #ffffff !important;
-        font-weight: bold;
-    }
-    
-    /* Abas de Navegação (Tabs) */
-    button[data-baseweb="tab"] {
-        color: #aaaaaa !important;
-        font-size: 16px;
-    }
-    button[aria-selected="true"] {
-        color: #ffcc00 !important;
-        border-bottom-color: #ffcc00 !important;
-        font-weight: bold;
-    }
-    
-    /* Caixas de Entrada de Texto e Seleção de Formulário */
-    .stTextInput input, .stSelectbox select, .stNumberInput input {
-        background-color: #262626 !important;
-        color: #ffffff !important;
-        border: 1px solid #ffcc00 !important;
-    }
-    
-    /* CORREÇÃO DO MULTISELECT E CAIXAS DE OPÇÃO (Filtrar por Status) */
-    /* Fundo da barra do filtro quando fechada */
-    div[data-baseweb="select"] {
-        background-color: #262626 !important;
-        border-radius: 4px !important;
-    }
-    /* Texto das tags que ficam dentro da barra */
-    div[role="button"] {
-        background-color: #1e1e1e !important;
-        color: #ffffff !important;
-        border: 1px solid #ffcc00 !important;
-    }
-    /* Fundo da caixinha suspensa que abre com as opções */
-    ul[role="listbox"] {
-        background-color: #1e1e1e !important;
-    }
-    /* Texto das opções dentro da caixinha suspensa */
-    li[role="option"] {
-        color: #ffffff !important;
-        background-color: #1e1e1e !important;
-    }
-    /* Cor quando passamos o mouse por cima da opção na lista */
-    li[role="option"]:hover {
-        background-color: #ffcc00 !important;
-        color: #000000 !important;
-    }
-    
-    /* BOTÃO EM FORMULÁRIOS: Fundo ouro com letra preta grossa garantida */
-    .stFormSubmitButton > button {
-        background-color: #ffcc00 !important;
-        color: #000000 !important;
-        font-weight: bold !important;
-        border: 2px solid #ffcc00 !important;
-        border-radius: 5px !important;
-        width: 100% !important;
-        padding: 10px 0px !important;
-    }
-    .stFormSubmitButton > button:hover {
-        background-color: #e6b800 !important;
-        color: #000000 !important;
-        border-color: #e6b800 !important;
-    }
+    .stApp { background-color: #121212; color: #ffffff !important; }
+    h1, h2, h3, p, span, label, th, td { color: #ffffff !important; }
+    div[data-testid="stMetric"] { background-color: #1e1e1e; border: 2px solid #ffcc00; border-radius: 10px; padding: 15px; }
+    div[data-testid="stMetricLabel"] { color: #ffcc00 !important; font-weight: bold; font-size: 16px; }
+    div[data-testid="stMetricValue"] { color: #ffffff !important; font-weight: bold; }
+    button[data-baseweb="tab"] { color: #aaaaaa !important; font-size: 16px; }
+    button[aria-selected="true"] { color: #ffcc00 !important; border-bottom-color: #ffcc00 !important; font-weight: bold; }
+    .stTextInput input, .stSelectbox select, .stNumberInput input { background-color: #262626 !important; color: #ffffff !important; border: 1px solid #ffcc00 !important; }
+    div[data-baseweb="select"] { background-color: #262626 !important; border-radius: 4px !important; }
+    div[role="button"] { background-color: #1e1e1e !important; color: #ffffff !important; border: 1px solid #ffcc00 !important; }
+    ul[role="listbox"] { background-color: #1e1e1e !important; }
+    li[role="option"] { color: #ffffff !important; background-color: #1e1e1e !important; }
+    li[role="option"]:hover { background-color: #ffcc00 !important; color: #000000 !important; }
+    .stFormSubmitButton > button { background-color: #ffcc00 !important; color: #000000 !important; font-weight: bold !important; border: 2px solid #ffcc00 !important; border-radius: 5px !important; width: 100% !important; padding: 10px 0px !important; }
+    .stFormSubmitButton > button:hover { background-color: #e6b800 !important; color: #000000 !important; border-color: #e6b800 !important; }
 </style>
 """
 st.markdown(design_premium, unsafe_allow_html=True)
@@ -103,41 +49,30 @@ URL_SUA_LOGO = "logo.png"
 
 col_logo, col_titulo = st.columns(2) 
 with col_logo:
-    try:
-        st.image(URL_SUA_LOGO, width=120)
-    except:
-        st.write("🦁 [Logo]")
+    try: st.image(URL_SUA_LOGO, width=120)
+    except: st.write("🦁 [Logo]")
 with col_titulo:
     st.markdown("<h1 style='color: #ffcc00; margin-bottom: 0; font-family: sans-serif; font-size: 42px;'>LionBit 3D Studio</h1>", unsafe_allow_html=True)
     st.markdown("<h3 style='color: #ffffff; margin-top: 0; font-family: sans-serif; font-weight: 300;'>Painel Integrado de Manufatura e Gestão de Vendas</h3>", unsafe_allow_html=True)
 
-# 📥 BANCO DE DADOS EM MEMÓRIA
-if 'pedidos' not in st.session_state:
-    st.session_state.pedidos = pd.DataFrame([
-        {
-            "Cliente": "João Silva", "Data": "06/07/2026", "Tipo de Projeto": "Suporte de Celular", 
-            "Peso (g)": 58.0, "Custo (R$)": 8.70, "Preço Venda (R$)": 34.80, "Margem": "400%", "Status": "Concluído"
-        }
-    ])
+# 📥 LEITURA DOS DADOS EM TEMPO REAL DIRETO DA NUVEM
+try:
+    dados_pedidos = supabase.table("encomendas").select("*").execute()
+    df_pedidos = pd.DataFrame(dados_pedidos.data) if dados_pedidos.data else pd.DataFrame(columns=["Cliente", "Data", "Tipo de Projeto", "Peso (g)", "Custo (R$)", "Preço Venda (R$)", "Margem", "Status"])
+    if not df_pedidos.empty:
+        df_pedidos = df_pedidos.rename(columns={"data_solicitacao": "Data", "tipo_projeto": "Tipo de Projeto", "peso_g": "Peso (g)", "custo_rs": "Custo (R$)", "preco_venda_rs": "Preço Venda (R$)", "margem": "Margem", "status": "Status"})
+except:
+    df_pedidos = pd.DataFrame(columns=["Cliente", "Data", "Tipo de Projeto", "Peso (g)", "Custo (R$)", "Preço Venda (R$)", "Margem", "Status"])
 
-if 'varejo' not in st.session_state:
-    st.session_state.varejo = pd.DataFrame([
-        {
-            "Produto": "Chaveiro Stitch", "Local de Venda": "Loja A (Shopping)", "Quantidade Enviada": 20, 
-            "Quantidade Vendida": 12, "Peso Unit. (g)": 12.0, "Custo Unit. (R$)": 1.80, "Preço Unit. Venda (R$)": 15.00
-        },
-        {
-            "Produto": "Boneco Articulado", "Local de Venda": "Banca Central (Centro)", "Quantidade Enviada": 10, 
-            "Quantidade Vendida": 3, "Peso Unit. (g)": 80.0, "Custo Unit. (R$)": 12.00, "Preço Unit. Venda (R$)": 50.00
-        }
-    ])
+try:
+    dados_varejo = supabase.table("varejo").select("*").execute()
+    df_varejo = pd.DataFrame(dados_varejo.data) if dados_varejo.data else pd.DataFrame(columns=["Produto", "Local de Venda", "Quantidade Enviada", "Quantidade Vendida", "Peso Unit. (g)", "Custo Unit. (R$)", "Preço Unit. Venda (R$)"])
+    if not df_varejo.empty:
+        df_varejo = df_varejo.rename(columns={"produto": "Produto", "local_venda": "Local de Venda", "qtd_enviada": "Quantidade Enviada", "qtd_vendida": "Quantidade Vendida", "peso_unit_g": "Peso Unit. (g)", "custo_unit_rs": "Custo Unit. (R$)", "preco_unit_venda_rs": "Preço Unit. Venda (R$)"})
+except:
+    df_varejo = pd.DataFrame(columns=["Produto", "Local de Venda", "Quantidade Enviada", "Quantidade Vendida", "Peso Unit. (g)", "Custo Unit. (R$)", "Preço Unit. Venda (R$)"])
 
-# ------------------------------------------------------------------------------
-# 📈 ÁREA DE MÉTRICAS GLOBAIS
-# ------------------------------------------------------------------------------
-df_pedidos = st.session_state.pedidos
-df_varejo = st.session_state.varejo
-
+# --- ÁREA DE MÉTRICAS GLOBAIS ---
 custo_pedidos = df_pedidos["Custo (R$)"].sum() if not df_pedidos.empty else 0.0
 faturamento_pedidos = df_pedidos["Preço Venda (R$)"].sum() if not df_pedidos.empty else 0.0
 
@@ -190,12 +125,12 @@ with aba_producao:
                     preco_calc = custo_calc * opcoes_margem[margem_texto]
                     data_br = data_sel.strftime("%d/%m/%Y")
                     
-                    nova_enc = {
-                        "Cliente": cliente, "Data": data_br, "Tipo de Projeto": tipo_projeto,
-                        "Peso (g)": peso_gramas, "Custo (R$)": round(custo_calc, 2),
-                        "Preço Venda (R$)": round(preco_calc, 2), "Margem": margem_texto, "Status": status_inicial
-                    }
-                    st.session_state.pedidos = pd.concat([st.session_state.pedidos, pd.DataFrame([nova_enc])], ignore_index=True)
+                    supabase.table("encomendas").insert({
+                        "cliente": cliente, "data_solicitacao": data_br, "tipo_projeto": tipo_projeto,
+                        "peso_g": peso_gramas, "custo_rs": round(custo_calc, 2),
+                        "preco_venda_rs": round(preco_calc, 2), "margem": margem_texto, "status": status_inicial
+                    }).execute()
+                    st.success("Salvo no banco de dados!")
                     st.rerun()
 
     with col_tab:
@@ -222,3 +157,4 @@ with aba_varejo:
             if st.form_submit_button("Registrar no Varejo"):
                 if produto and local and peso_unit > 0:
                     custo_u = peso_unit * 0.15
+                    supabase.table("varejo").insert({
