@@ -9,7 +9,7 @@ st.set_page_config(page_title="LionBit 3D Studio - Painel de Controle", layout="
 # ==============================================================================
 # 🔑 CONEXÃO COM O BANCO DE DADOS EM NUVEM (SUPABASE)
 # ==============================================================================
-SUPABASE_URL = "https://ntybsaywkdmqcjhslehw.supabase.co/rest/v1/"
+SUPABASE_URL = "https://ntybsaywkdmqcjhslehw.supabase.co/"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50eWJzYXl3a2RtcWNqaHNsZWh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNTQwMjgsImV4cCI6MjA5ODkzMDAyOH0.0pV_Lu60COGdjBCuVVSmqf2TNqH3I_0xlLSeJckenzA"
 
 # Inicializa a conexão com o banco de dados permanente
@@ -125,11 +125,8 @@ with aba_producao:
                     preco_calc = custo_calc * opcoes_margem[margem_texto]
                     data_br = data_sel.strftime("%d/%m/%Y")
                     
-                    supabase.table("encomendas").insert({
-                        "cliente": cliente, "data_solicitacao": data_br, "tipo_projeto": tipo_projeto,
-                        "peso_g": peso_gramas, "custo_rs": round(custo_calc, 2),
-                        "preco_venda_rs": round(preco_calc, 2), "margem": margem_texto, "status": status_inicial
-                    }).execute()
+                    # Linha de inserção unificada e blindada contra quebras de sintaxe
+                    supabase.table("encomendas").insert({"cliente": cliente, "data_solicitacao": data_br, "tipo_projeto": tipo_projeto, "peso_g": peso_gramas, "custo_rs": round(custo_calc, 2), "preco_venda_rs": round(preco_calc, 2), "margem": margem_texto, "status": status_inicial}).execute()
                     st.success("Salvo no banco de dados!")
                     st.rerun()
 
@@ -157,4 +154,5 @@ with aba_varejo:
             if st.form_submit_button("Registrar no Varejo"):
                 if produto and local and peso_unit > 0:
                     custo_u = peso_unit * 0.15
-                    supabase.table("varejo").insert({
+                    
+                    # Linha de inserção unificada e blindada contra quebras de sintaxe
