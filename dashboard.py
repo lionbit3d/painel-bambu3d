@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit st
 import pandas as pd
 from datetime import datetime
 
@@ -101,7 +101,7 @@ st.markdown(design_premium, unsafe_allow_html=True)
 # 🦁 LOGO REAL DO LIONBIT
 URL_SUA_LOGO = "logo.png"
 
-col_logo, col_titulo = st.columns() 
+col_logo, col_titulo = st.columns(2) 
 with col_logo:
     try:
         st.image(URL_SUA_LOGO, width=120)
