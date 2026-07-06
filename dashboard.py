@@ -5,15 +5,20 @@ from datetime import datetime
 # Configuração da página da Dashboard
 st.set_page_config(page_title="LionBit 3D Studio - Painel de Controle", layout="wide")
 
-# 🎨 DESIGN PREMIUM (Cinza-Grafite de Alto Contraste, Fontes Claras e Botões Dourados)
+# 🎨 DESIGN PREMIUM CORRIGIDO (Contraste Máximo com Fontes Brancas e Botões Ouro)
 design_premium = """
 <style>
-    /* Configuração de fundo e textos padrão */
+    /* Fundo geral grafite escuro com textos forçados em BRANCO PURO */
     .stApp {
         background-color: #121212;
         color: #ffffff !important;
     }
-    h1, h2, h3, p, span, label, th, td {
+    h1, h2, h3, p, span, label, th, td, div {
+        color: #ffffff !important;
+    }
+    
+    /* Força os rótulos de formulários a ficarem visíveis em branco */
+    .stWidgetFormLabel > div {
         color: #ffffff !important;
     }
     
@@ -51,7 +56,7 @@ design_premium = """
         color: #ffffff !important;
     }
     
-    /* CORREÇÃO DO BOTÃO EM FORMULÁRIOS: Garante fundo ouro com letra preta */
+    /* BOTÃO EM FORMULÁRIOS: Fundo ouro com letra preta grossa garantida */
     .stFormSubmitButton > button {
         background-color: #ffcc00 !important;
         color: #000000 !important;
@@ -70,12 +75,15 @@ design_premium = """
 """
 st.markdown(design_premium, unsafe_allow_html=True)
 
-# 🦁 LOGO REAL E DIRETAMENTE INTEGRADA DO LIONBIT
-URL_SUA_LOGO = "https://imgur.com"
-
-col_logo, col_titulo = st.columns([1, 6])
+# 🦁 LOGO REAL DO LIONBIT (Puxando de forma segura da raiz do seu GitHub)
+col_logo, col_titulo = st.columns([1, 5]) # Dá o espaçamento correto no topo
 with col_logo:
-    st.image(URL_SUA_LOGO, width=120)
+    try:
+        # Lê o arquivo local enviado para o GitHub
+        st.image("logo.png", width=120)
+    except:
+        # Caso o arquivo mude de nome, mostra o emoji sem travar o sistema
+        st.write("🦁 [Logo]")
 with col_titulo:
     st.markdown("<h1 style='color: #ffcc00; margin-bottom: 0; font-family: sans-serif; font-size: 42px;'>LionBit 3D Studio</h1>", unsafe_allow_html=True)
     st.markdown("<h3 style='color: #ffffff; margin-top: 0; font-family: sans-serif; font-weight: 300;'>Painel Integrado de Manufatura e Gestão de Vendas</h3>", unsafe_allow_html=True)
@@ -203,8 +211,3 @@ with aba_varejo:
         st.write("### 📊 Relatório de Itens em Lojas Externas")
         if not df_varejo.empty:
             df_varejo_exibicao = df_varejo.copy()
-            df_varejo_exibicao["Estoque Atual na Loja"] = df_varejo_exibicao["Quantidade Enviada"] - df_varejo_exibicao["Quantidade Vendida"]
-            st.dataframe(df_varejo_exibicao[["Produto", "Local de Venda", "Quantidade Enviada", "Quantidade Vendida", "Estoque Atual na Loja", "Custo Unit. (R$)", "Preço Unit. Venda (R$)", "Lucro Gerado (R$)"]], use_container_width=True)
-        else:
-            st.info("Nenhum lote de varejo cadastrado.")
-
