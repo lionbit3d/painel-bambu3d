@@ -13,12 +13,10 @@ st.set_page_config(page_title="LionBit 3D Studio - Painel de Controle", layout="
 SUPABASE_URL = "https://ntybsaywkdmqcjhslehw.supabase.co/"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50eWJzYXl3a2RtcWNqaHNsZWh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNTQwMjgsImV4cCI6MjA5ODkzMDAyOH0.0pV_Lu60COGdjBCuVVSmqf2TNqH3I_0xlLSeJckenzA"
 
-# 🛡️ INICIALIZAÇÃO BLINDADA ATUALIZADA: Ignora os proxies ocultos do Streamlit Cloud
+# 🛡️ INICIALIZAÇÃO BLINDADA: Ignora os proxies ocultos do Streamlit Cloud
 @st.cache_resource
 def iniciar_banco():
-    # Criamos um cliente HTTP limpo sem proxies automáticos
     cliente_limpo = httpx.Client(proxies={})
-    # Passamos o cliente de transporte direto no create_client, contornando o erro do ClientOptions
     return create_client(SUPABASE_URL, SUPABASE_KEY, http_client=cliente_limpo)
 
 try:
@@ -126,7 +124,7 @@ with aba_producao:
             if st.form_submit_button("Salvar Encomenda"):
                 if cliente and peso_gramas > 0:
                     custo_calc = peso_gramas * 0.15
-                    preco_calc = cubic_calc = custo_calc * opcoes_margem[margem_texto]
+                    preco_calc = custo_calc * opcoes_margem[margem_texto]
                     data_br = data_sel.strftime("%d/%m/%Y")
                     
                     supabase.table("encomendas").insert({"cliente": cliente, "data_solicitacao": data_br, "tipo_projeto": tipo_projeto, "peso_g": peso_gramas, "custo_rs": round(custo_calc, 2), "preco_venda_rs": round(preco_calc, 2), "margem": margem_texto, "status": status_inicial}).execute()
@@ -156,3 +154,4 @@ with aba_varejo:
             
             if st.form_submit_button("Registrar no Varejo"):
                 if produto and local and peso_unit > 0:
+                    custo_u = peso_unit * 0.15
