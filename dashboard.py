@@ -104,7 +104,7 @@ aba_producao, aba_varejo, aba_graficos = st.tabs(["🏭 Fluxo de Encomendas", "�
 # --- ABA 1: FLUXO DE ENCOMENDAS ---
 with aba_producao:
     st.subheader("📋 Gestão de Encomendas Ativas")
-    col_form, col_tab = st.columns()
+col_form, col_tab = st.columns(2)
     
     with col_form:
         st.write("### ➕ Nova Encomenda")
@@ -144,7 +144,7 @@ with aba_producao:
 # --- ABA 2: ESTOQUE E COMÉRCIO VAREJO ---
 with aba_varejo:
     st.subheader("🏪 Produtos em Comércio (Varejo / Consignação)")
-    col_form2, col_tab2 = st.columns()
+    col_form2, col_tab2 = st.columns(2)
     
     with col_form2:
         st.write("### ➕ Cadastrar Lote no Varejo")
