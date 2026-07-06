@@ -1,32 +1,24 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from supabase import create_client, Client
-from supabase.lib.client_options import ClientOptions
-import httpx
+import requests  # Usamos requisições diretas de internet, 100% livre de bugs de biblioteca!
 
 # Configuração da página da Dashboard
 st.set_page_config(page_title="LionBit 3D Studio - Painel de Controle", layout="wide")
 
 # ==============================================================================
-# 🔑 CONEXÃO COM O BANCO DE DADOS EM NUVEM (SUPABASE)
+# 🔑 CONEXÃO DIRETA COM O BANCO DE DADOS EM NUVEM (SUPABASE)
 # ==============================================================================
 SUPABASE_URL = "https://ntybsaywkdmqcjhslehw.supabase.co/"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50eWJzYXl3a2RtcWNqaHNsZWh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNTQwMjgsImV4cCI6MjA5ODkzMDAyOH0.0pV_Lu60COGdjBCuVVSmqf2TNqH3I_0xlLSeJckenzA"
 
-# 🛡️ INICIALIZAÇÃO BLINDADA: Contorna o proxy do Streamlit usando as regras corretas do ClientOptions
-@st.cache_resource
-def iniciar_banco():
-    # Cria o transporte HTTP limpo sem os proxies que travam a nuvem
-    cliente_limpo = httpx.Client(proxies={})
-    # Configura as opções do cliente injetando o transporte limpo de forma correta
-    opcoes = ClientOptions(http_client=cliente_limpo)
-    return create_client(SUPABASE_URL, SUPABASE_KEY, options=opcoes)
-
-try:
-    supabase = iniciar_banco()
-except Exception as e:
-    st.error(f"Erro ao conectar com o banco de dados: {e}")
+# Cabeçalhos de autenticação exigidos pelo Supabase
+HEADERS = {
+    "apikey": SUPABASE_KEY,
+    "Authorization": f"Bearer {SUPABASE_KEY}",
+    "Content-Type": "application/json",
+    "Prefer": "return=representation"
+}
 
 # 🎨 DESIGN PREMIUM (Cinza-Grafite de Alto Contraste, Fontes Claras e Botões Dourados)
 design_premium = """
@@ -61,18 +53,22 @@ with col_titulo:
     st.markdown("<h1 style='color: #ffcc00; margin-bottom: 0; font-family: sans-serif; font-size: 42px;'>LionBit 3D Studio</h1>", unsafe_allow_html=True)
     st.markdown("<h3 style='color: #ffffff; margin-top: 0; font-family: sans-serif; font-weight: 300;'>Painel Integrado de Manufatura e Gestão de Vendas</h3>", unsafe_allow_html=True)
 
-# 📥 LEITURA DOS DADOS EM TEMPO REAL DIRETO DA NUVEM
+# 📥 LEITURA DOS DADOS EM TEMPO REAL VIA API HTTP PURA
 try:
-    dados_pedidos = supabase.table("encomendas").select("*").execute()
-    df_pedidos = pd.DataFrame(dados_pedidos.data) if dados_pedidos.data else pd.DataFrame(columns=["Cliente", "Data", "Tipo de Projeto", "Peso (g)", "Custo (R$)", "Preço Venda (R$)", "Margem", "Status"])
+    url_get_pedidos = f"{SUPABASE_URL}/rest/v1/encomendas?select=*"
+    resposta_pedidos = requests.get(url_get_pedidos, headers=HEADERS)
+    dados_p = resposta_pedidos.json() if resposta_pedidos.status_code == 200 else []
+    df_pedidos = pd.DataFrame(dados_p) if dados_p else pd.DataFrame(columns=["Cliente", "Data", "Tipo de Projeto", "Peso (g)", "Custo (R$)", "Preço Venda (R$)", "Margem", "Status"])
     if not df_pedidos.empty:
         df_pedidos = df_pedidos.rename(columns={"data_solicitacao": "Data", "tipo_projeto": "Tipo de Projeto", "peso_g": "Peso (g)", "custo_rs": "Custo (R$)", "preco_venda_rs": "Preço Venda (R$)", "margem": "Margem", "status": "Status"})
 except:
     df_pedidos = pd.DataFrame(columns=["Cliente", "Data", "Tipo de Projeto", "Peso (g)", "Custo (R$)", "Preço Venda (R$)", "Margem", "Status"])
 
 try:
-    dados_varejo = supabase.table("varejo").select("*").execute()
-    df_varejo = pd.DataFrame(dados_varejo.data) if dados_varejo.data else pd.DataFrame(columns=["Produto", "Local de Venda", "Quantidade Enviada", "Quantidade Vendida", "Peso Unit. (g)", "Custo Unit. (R$)", "Preço Unit. Venda (R$)"])
+    url_get_varejo = f"{SUPABASE_URL}/rest/v1/varejo?select=*"
+    resposta_varejo = requests.get(url_get_varejo, headers=HEADERS)
+    dados_v = resposta_varejo.json() if resposta_varejo.status_code == 200 else []
+    df_varejo = pd.DataFrame(dados_v) if dados_v else pd.DataFrame(columns=["Produto", "Local de Venda", "Quantidade Enviada", "Quantidade Vendida", "Peso Unit. (g)", "Custo Unit. (R$)", "Preço Unit. Venda (R$)"])
     if not df_varejo.empty:
         df_varejo = df_varejo.rename(columns={"produto": "Produto", "local_venda": "Local de Venda", "qtd_enviada": "Quantidade Enviada", "qtd_vendida": "Quantidade Vendida", "peso_unit_g": "Peso Unit. (g)", "custo_unit_rs": "Custo Unit. (R$)", "preco_unit_venda_rs": "Preço Unit. Venda (R$)"})
 except:
@@ -131,7 +127,8 @@ with aba_producao:
                     preco_calc = custo_calc * opcoes_margem[margem_texto]
                     data_br = data_sel.strftime("%d/%m/%Y")
                     
-                    supabase.table("encomendas").insert({"cliente": cliente, "data_solicitacao": data_br, "tipo_projeto": tipo_projeto, "peso_g": peso_gramas, "custo_rs": round(custo_calc, 2), "preco_venda_rs": round(preco_calc, 2), "margem": margem_texto, "status": status_inicial}).execute()
+                    payload = {"cliente": cliente, "data_solicitacao": data_br, "tipo_projeto": tipo_projeto, "peso_g": peso_gramas, "custo_rs": round(custo_calc, 2), "preco_venda_rs": round(preco_calc, 2), "margem": margem_texto, "status": status_inicial}
+                    requests.post(f"{SUPABASE_URL}/rest/v1/encomendas", headers=HEADERS, json=payload)
                     st.success("Salvo no banco de dados!")
                     st.rerun()
 
@@ -156,3 +153,4 @@ with aba_varejo:
             peso_unit = st.number_input("Peso de 1 Unidade (g)", min_value=0.0, step=1.0)
             preco_loja = st.number_input("Preço Cobrado no Varejo (R$)", min_value=0.0, step=1.0)
             
+            if st.form_submit_button("Registrar no Varejo"):
