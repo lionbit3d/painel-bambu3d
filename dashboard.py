@@ -119,7 +119,8 @@ aba_producao, aba_varejo, aba_graficos = st.tabs(["🏭 Fluxo de Encomendas", "�
 # --- ABA 1: FLUXO DE ENCOMENDAS ---
 with aba_producao:
     st.markdown("<h2 style='color: #ffcc00;'>📋 Gestão de Encomendas Ativas</h2>", unsafe_allow_html=True)
-    col_form, col_tab = st.columns()
+    # CORREÇÃO DE COLUNA: Adicionado o valor de proporção ideal [1, 2]
+    col_form, col_tab = st.columns([1, 2])
     
     with col_form:
         st.write("### ➕ Nova Encomenda")
