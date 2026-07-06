@@ -5,19 +5,19 @@ from datetime import datetime
 # Configuração da página da Dashboard
 st.set_page_config(page_title="LionBit 3D Studio - Painel de Controle", layout="wide")
 
-# 🎨 DESIGN PREMIUM AJUSTADO (Cinza-Grafite, Textos Brancos e Botões Dourados Visíveis)
+# 🎨 DESIGN PREMIUM (Cinza-Grafite de Alto Contraste, Fontes Claras e Botões Dourados)
 design_premium = """
 <style>
-    /* Fundo geral e textos em branco puro para leitura confortável */
+    /* Configuração de fundo e textos padrão */
     .stApp {
         background-color: #121212;
         color: #ffffff !important;
     }
-    h1, h2, h3, p, span, label {
+    h1, h2, h3, p, span, label, th, td {
         color: #ffffff !important;
     }
     
-    /* Blocos de métricas superiores */
+    /* Blocos de métricas superiores com borda dourada */
     div[data-testid="stMetric"] {
         background-color: #1e1e1e;
         border: 2px solid #ffcc00;
@@ -34,7 +34,7 @@ design_premium = """
         font-weight: bold;
     }
     
-    /* Abas de Navegação */
+    /* Abas de Navegação (Tabs) */
     button[data-baseweb="tab"] {
         color: #aaaaaa !important;
         font-size: 16px;
@@ -45,35 +45,37 @@ design_premium = """
         font-weight: bold;
     }
     
-    /* Campos de Input do Formulário */
+    /* Caixas de Entrada de Texto e Seleção */
     input, select, textarea {
         background-color: #262626 !important;
         color: #ffffff !important;
     }
     
-    /* CORREÇÃO DO BOTÃO: Força fundo Amarelo-Ouro com texto preto bem visível */
-    div.stButton > button {
+    /* CORREÇÃO DO BOTÃO EM FORMULÁRIOS: Garante fundo ouro com letra preta */
+    .stFormSubmitButton > button {
         background-color: #ffcc00 !important;
         color: #000000 !important;
         font-weight: bold !important;
-        border: none !important;
-        padding: 10px 24px !important;
+        border: 2px solid #ffcc00 !important;
         border-radius: 5px !important;
-        transition: background-color 0.3s ease;
+        width: 100% !important;
+        padding: 10px 0px !important;
     }
-    div.stButton > button:hover {
-        background-color: #cca300 !important;
+    .stFormSubmitButton > button:hover {
+        background-color: #e6b800 !important;
         color: #000000 !important;
+        border-color: #e6b800 !important;
     }
 </style>
 """
 st.markdown(design_premium, unsafe_allow_html=True)
 
-# 🦁 LOGO OFICIAL LIONBIT (Link corrigido de acesso direto)
+# 🦁 LOGO REAL E DIRETAMENTE INTEGRADA DO LIONBIT
 URL_SUA_LOGO = "https://imgur.com"
 
-col_logo, col_titulo = st.columns([1, 6]) # Define proporções para não esmagar a logo
+col_logo, col_titulo = st.columns([1, 5])
 with col_logo:
+    # Carrega a imagem direto do arquivo PNG limpo do Imgur
     st.image(URL_SUA_LOGO, width=120)
 with col_titulo:
     st.markdown("<h1 style='color: #ffcc00; margin-bottom: 0; font-family: sans-serif; font-size: 42px;'>LionBit 3D Studio</h1>", unsafe_allow_html=True)
@@ -205,5 +207,3 @@ with aba_varejo:
             df_varejo_exibicao["Estoque Atual na Loja"] = df_varejo_exibicao["Quantidade Enviada"] - df_varejo_exibicao["Quantidade Vendida"]
             st.dataframe(df_varejo_exibicao[["Produto", "Local de Venda", "Quantidade Enviada", "Quantidade Vendida", "Estoque Atual na Loja", "Custo Unit. (R$)", "Preço Unit. Venda (R$)", "Lucro Gerado (R$)"]], use_container_width=True)
         else:
-            st.info("Nenhum lote de varejo cadastrado.")
-
