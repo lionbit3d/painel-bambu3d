@@ -13,18 +13,16 @@ st.set_page_config(page_title="LionBit 3D Studio - Painel de Controle", layout="
 SUPABASE_URL = "https://ntybsaywkdmqcjhslehw.supabase.co/"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50eWJzYXl3a2RtcWNqaHNsZWh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNTQwMjgsImV4cCI6MjA5ODkzMDAyOH0.0pV_Lu60COGdjBCuVVSmqf2TNqH3I_0xlLSeJckenzA"
 
-# 🛡️ INICIALIZAÇÃO BLINDADA: Ignora os parâmetros de proxy ocultos do Streamlit Cloud
+# 🛡️ INICIALIZAÇÃO BLINDADA ATUALIZADA: Ignora os proxies ocultos do Streamlit Cloud
 @st.cache_resource
 def iniciar_banco():
-    # Criamos um cliente HTTP customizado e limpo, sem os proxies automáticos da nuvem
-    cliente_http = httpx.Client(proxies={})
-    return create_client(SUPABASE_URL, SUPABASE_KEY, options=st.session_state.get("supabase_options", None))
+    # Criamos um cliente HTTP limpo sem proxies automáticos
+    cliente_limpo = httpx.Client(proxies={})
+    # Passamos o cliente de transporte direto no create_client, contornando o erro do ClientOptions
+    return create_client(SUPABASE_URL, SUPABASE_KEY, http_client=cliente_limpo)
 
 try:
-    # Caso a biblioteca trave pelas opções nativas, forçamos a conexão via cliente direto
-    import supabase.lib.client_options as opts
-    opcoes = opts.ClientOptions(http_client=httpx.Client(proxies={}))
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY, options=opcoes)
+    supabase = iniciar_banco()
 except Exception as e:
     st.error(f"Erro ao conectar com o banco de dados: {e}")
 
@@ -128,7 +126,7 @@ with aba_producao:
             if st.form_submit_button("Salvar Encomenda"):
                 if cliente and peso_gramas > 0:
                     custo_calc = peso_gramas * 0.15
-                    preco_calc = custo_calc * opcoes_margem[margem_texto]
+                    preco_calc = cubic_calc = custo_calc * opcoes_margem[margem_texto]
                     data_br = data_sel.strftime("%d/%m/%Y")
                     
                     supabase.table("encomendas").insert({"cliente": cliente, "data_solicitacao": data_br, "tipo_projeto": tipo_projeto, "peso_g": peso_gramas, "custo_rs": round(custo_calc, 2), "preco_venda_rs": round(preco_calc, 2), "margem": margem_texto, "status": status_inicial}).execute()
@@ -154,3 +152,7 @@ with aba_varejo:
             qtd_enviada = st.number_input("Qtd Enviada para a Loja", min_value=1, step=1)
             qtd_vendida = st.number_input("Qtd Já Vendida pela Loja", min_value=0, max_value=int(qtd_enviada if qtd_enviada > 0 else 1), step=1)
             peso_unit = st.number_input("Peso de 1 Unidade (g)", min_value=0.0, step=1.0)
+            preco_loja = st.number_input("Preço Cobrado no Varejo (R$)", min_value=0.0, step=1.0)
+            
+            if st.form_submit_button("Registrar no Varejo"):
+                if produto and local and peso_unit > 0:
