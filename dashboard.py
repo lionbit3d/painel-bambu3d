@@ -544,11 +544,17 @@ def render_bambu_lab():
         if st.button("Ligar luz", use_container_width=True):
             with st.spinner("Enviando comando..."):
                 ok, message = send_bambu_light_command(printer, "on")
-            st.success(message) if ok else st.error(message)
+            if ok:
+                st.success(message)
+            else:
+                st.error(message)
         if st.button("Desligar luz", use_container_width=True):
             with st.spinner("Enviando comando..."):
                 ok, message = send_bambu_light_command(printer, "off")
-            st.success(message) if ok else st.error(message)
+            if ok:
+                st.success(message)
+            else:
+                st.error(message)
 
 
 def render_encomendas(df_pedidos):
