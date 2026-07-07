@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import requests
 
 
@@ -54,6 +54,7 @@ LISTA_PROJETOS = [
 OPCOES_MARGEM = {"250%": 2.5, "300%": 3.0, "350%": 3.5, "400%": 4.0}
 STATUS_OPTIONS = ["Pendente", "Imprimindo", "Concluído"]
 CONSULTORES = ["Isaac", "Renato"]
+BRASILIA_TZ = timezone(timedelta(hours=-3))
 
 design_premium = """
 <style>
@@ -113,6 +114,27 @@ def format_currency_columns(df, columns):
     return df_formatado
 
 
+def today_brasilia():
+    return datetime.now(BRASILIA_TZ).date()
+
+
+def parse_float(value):
+    if pd.isna(value):
+        return 0.0
+    if isinstance(value, str):
+        value = value.replace("R$", "").replace(".", "").replace(",", ".").strip()
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def calculate_order_values(peso_gramas, margem_texto):
+    custo_calc = parse_float(peso_gramas) * 0.15
+    preco_calc = custo_calc * OPCOES_MARGEM.get(str(margem_texto), 3.0)
+    return round(custo_calc, 2), round(preco_calc, 2)
+
+
 def empty_pedidos():
     return pd.DataFrame(columns=PEDIDOS_COLUMNS)
 
@@ -140,6 +162,13 @@ def load_pedidos():
                     "status": "Status",
                 }
             )
+            for column in PEDIDOS_COLUMNS:
+                if column not in df.columns:
+                    df[column] = ""
+            df["Consultor"] = df["Consultor"].fillna("").replace("", "Isaac")
+            df["Margem"] = df["Margem"].fillna("").replace("", "300%")
+            df["Status"] = df["Status"].fillna("").replace("", "Pendente")
+            df["Tipo de Projeto"] = df["Tipo de Projeto"].fillna("").replace("", LISTA_PROJETOS[0])
         return df
     except Exception:
         return empty_pedidos()
@@ -219,28 +248,57 @@ def render_global_metrics(df_pedidos, df_varejo):
     col4.metric("🔥 Lucro Líquido Geral", format_brl(lucro_global))
 
 
-def sync_status_changes(df_original, df_editado):
+def sync_encomenda_changes(df_original, df_editado):
     if "id" not in df_original.columns or "id" not in df_editado.columns:
         return
 
-    alterou_status = False
+    alterou_registro = False
     for _, linha_editada in df_editado.iterrows():
         registro = df_original[df_original["id"] == linha_editada["id"]]
         if registro.empty:
             continue
 
-        status_original = registro.iloc[0]["Status"]
-        if linha_editada["Status"] != status_original:
+        linha_original = registro.iloc[0]
+        custo_calc, preco_calc = calculate_order_values(linha_editada["Peso (g)"], linha_editada["Margem"])
+        payload = {
+            "cliente": linha_editada["Cliente"],
+            "consultor": linha_editada["Consultor"],
+            "tipo_projeto": linha_editada["Tipo de Projeto"],
+            "peso_g": parse_float(linha_editada["Peso (g)"),
+            "custo_rs": custo_calc,
+            "preco_venda_rs": preco_calc,
+            "margem": linha_editada["Margem"],
+            "status": linha_editada["Status"],
+        }
+        mudou = any(
+            [
+                str(linha_editada["Cliente"]) != str(linha_original["Cliente"]),
+                str(linha_editada["Consultor"]) != str(linha_original["Consultor"]),
+                str(linha_editada["Tipo de Projeto"]) != str(linha_original["Tipo de Projeto"]),
+                parse_float(linha_editada["Peso (g)"]) != parse_float(linha_original["Peso (g)"]),
+                str(linha_editada["Margem"]) != str(linha_original["Margem"]),
+                str(linha_editada["Status"]) != str(linha_original["Status"]),
+            ]
+        )
+
+        if mudou:
             requests.patch(
                 f"{SUPABASE_URL}/rest/v1/encomendas?id=eq.{linha_editada['id']}",
                 headers=HEADERS,
-                json={"status": linha_editada["Status"]},
+                json=payload,
             )
-            alterou_status = True
+            alterou_registro = True
 
-    if alterou_status:
-        st.success("Status atualizado no banco de dados!")
+    if alterou_registro:
+        st.success("Encomenda atualizada no banco de dados!")
         st.rerun()
+    else:
+        st.info("Nenhuma alteração para salvar.")
+
+
+def delete_encomenda(encomenda_id):
+    response = requests.delete(f"{SUPABASE_URL}/rest/v1/encomendas?id=eq.{encomenda_id}", headers=HEADERS)
+    return response.status_code in [200, 204]
 
 
 def render_encomendas(df_pedidos):
@@ -252,7 +310,7 @@ def render_encomendas(df_pedidos):
         with st.form("form_encomenda", clear_on_submit=True):
             cliente = st.text_input("Nome do Cliente")
             consultor = st.selectbox("Consultor", CONSULTORES)
-            data_sel = st.date_input("Data de Solicitação", datetime.now(), format="DD/MM/YYYY")
+            data_sel = st.date_input("Data de Solicitação", today_brasilia(), format="DD/MM/YYYY")
             tipo_projeto = st.selectbox("Tipo de Projeto", LISTA_PROJETOS)
             peso_gramas = st.number_input("Peso em Gramas (g)", min_value=0.0, step=1.0)
             margem_texto = st.selectbox("Margem de Venda", list(OPCOES_MARGEM.keys()), index=1)
@@ -260,8 +318,7 @@ def render_encomendas(df_pedidos):
 
             if st.form_submit_button("Salvar Encomenda"):
                 if cliente and peso_gramas > 0:
-                    custo_calc = peso_gramas * 0.15
-                    preco_calc = custo_calc * OPCOES_MARGEM[margem_texto]
+                    custo_calc, preco_calc = calculate_order_values(peso_gramas, margem_texto)
                     data_br = data_sel.strftime("%d/%m/%Y")
 
                     payload = {
@@ -270,14 +327,16 @@ def render_encomendas(df_pedidos):
                         "data_solicitacao": data_br,
                         "tipo_projeto": tipo_projeto,
                         "peso_g": peso_gramas,
-                        "custo_rs": round(custo_calc, 2),
-                        "preco_venda_rs": round(preco_calc, 2),
+                        "custo_rs": custo_calc,
+                        "preco_venda_rs": preco_calc,
                         "margem": margem_texto,
                         "status": status_inicial,
                     }
                     requests.post(f"{SUPABASE_URL}/rest/v1/encomendas", headers=HEADERS, json=payload)
                     st.success("Salvo no banco de dados!")
                     st.rerun()
+                else:
+                    st.warning("Preencha o cliente e um peso maior que zero.")
 
     with col_tab:
         st.write("### 🔍 Cronograma Prontuário")
@@ -295,6 +354,29 @@ def render_encomendas(df_pedidos):
                 df_pedidos_exibicao,
                 column_config={
                     "id": None,
+                    "created_at": None,
+                    "Cliente": st.column_config.TextColumn("Cliente", required=True),
+                    "Consultor": st.column_config.SelectboxColumn(
+                        "Consultor",
+                        options=CONSULTORES,
+                        required=True,
+                    ),
+                    "Tipo de Projeto": st.column_config.SelectboxColumn(
+                        "Tipo de Projeto",
+                        options=LISTA_PROJETOS,
+                        required=True,
+                    ),
+                    "Peso (g)": st.column_config.NumberColumn(
+                        "Peso (g)",
+                        min_value=0.0,
+                        step=1.0,
+                        required=True,
+                    ),
+                    "Margem": st.column_config.SelectboxColumn(
+                        "Margem",
+                        options=list(OPCOES_MARGEM.keys()),
+                        required=True,
+                    ),
                     "Status": st.column_config.SelectboxColumn(
                         "Status",
                         options=STATUS_OPTIONS,
@@ -302,18 +384,28 @@ def render_encomendas(df_pedidos):
                     ),
                 },
                 disabled=[
-                    "Cliente",
-                    "Consultor",
                     "Data",
-                    "Tipo de Projeto",
-                    "Peso (g)",
                     "Custo (R$)",
                     "Preço Venda (R$)",
-                    "Margem",
                 ],
                 use_container_width=True,
             )
-            sync_status_changes(df_pedidos_filtrado, tabela_editavel)
+            col_salvar, col_excluir = st.columns(2)
+            with col_salvar:
+                if st.button("Salvar alterações do prontuário", use_container_width=True):
+                    sync_encomenda_changes(df_pedidos_filtrado, tabela_editavel)
+            with col_excluir:
+                opcoes_exclusao = {
+                    f"{row['Cliente']} | {row['Tipo de Projeto']} | {row['Data']} | ID {row['id']}": row["id"]
+                    for _, row in df_pedidos_filtrado.iterrows()
+                }
+                encomenda_para_excluir = st.selectbox("Excluir encomenda", list(opcoes_exclusao.keys()))
+                if st.button("Excluir encomenda selecionada", use_container_width=True):
+                    if delete_encomenda(opcoes_exclusao[encomenda_para_excluir]):
+                        st.success("Encomenda excluída do banco de dados!")
+                        st.rerun()
+                    else:
+                        st.error("Não consegui excluir essa encomenda agora.")
         else:
             st.info("Nenhuma encomenda encontrada para os filtros selecionados.")
 
