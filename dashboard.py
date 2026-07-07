@@ -1231,6 +1231,122 @@ def render_encomenda_status_overview(df_pedidos_filtrado):
     st.markdown(f"<div class='lion-status-board'>{''.join(rows)}</div>", unsafe_allow_html=True)
 
 
+def render_order_detail_content(order_row):
+    def safe_int(value):
+        try:
+            if pd.isna(value):
+                return None
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    encomenda_id = int(order_row["id"])
+    jobs = load_bambu_print_jobs()
+    consumo = load_consumo_filamento()
+    filamentos = load_filamentos()
+
+    jobs_order = jobs[jobs["encomenda_id"].astype(str) == str(encomenda_id)].copy() if not jobs.empty else empty_impressoes()
+    consumo_order = (
+        consumo[consumo["encomenda_id"].astype(str) == str(encomenda_id)].copy()
+        if not consumo.empty
+        else empty_consumo_filamento()
+    )
+    total_consumido = consumo_order["peso_usado_g"].apply(parse_float).sum() if not consumo_order.empty else 0
+    finalizadas = len(jobs_order[jobs_order["status"].astype(str) == "Finalizada"]) if not jobs_order.empty else 0
+
+    st.write(f"### {order_row.get('Encomenda', '') or order_row.get('Tipo de Projeto', '')}")
+    st.caption(f"Cliente: {order_row.get('Cliente', '')} | Consultor: {order_row.get('Consultor', '')} | ID {encomenda_id}")
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Status do pedido", str(order_row.get("Status", "-")))
+    m2.metric("Mesas vinculadas", len(jobs_order))
+    m3.metric("Mesas finalizadas", finalizadas)
+    m4.metric("Filamento baixado", f"{total_consumido:.0f}g")
+
+    st.write("#### Impressões vinculadas")
+    if jobs_order.empty:
+        st.info("Nenhuma impressão vinculada a esta encomenda ainda.")
+    else:
+        jobs_view = jobs_order.copy()
+        jobs_view["Tempo restante"] = jobs_view["tempo_restante_min"].apply(format_remaining_time)
+        jobs_view["Finalizada em"] = jobs_view["finalizada_em"].fillna("")
+        st.dataframe(
+            jobs_view[["arquivo", "status", "progresso", "Tempo restante", "Finalizada em"]],
+            hide_index=True,
+            use_container_width=True,
+        )
+
+    st.write("#### Filamentos usados")
+    if consumo_order.empty:
+        st.info("Nenhuma baixa de filamento registrada para esta encomenda.")
+        return
+
+    jobs_lookup = {
+        safe_int(row["id"]): row.get("arquivo", "")
+        for _, row in jobs_order.iterrows()
+        if safe_int(row.get("id")) is not None
+    }
+    filamentos_lookup = {
+        safe_int(row["id"]): row.to_dict()
+        for _, row in filamentos.iterrows()
+        if safe_int(row.get("id")) is not None
+    }
+    consumo_rows = []
+    for _, row in consumo_order.iterrows():
+        filamento = filamentos_lookup.get(safe_int(row.get("filamento_id")), {})
+        cor_nome = filamento.get("cor_nome", "") if isinstance(filamento, dict) else ""
+        cor_hex = filamento.get("cor_hex", "") if isinstance(filamento, dict) else ""
+        consumo_rows.append(
+            {
+                "Impressão": jobs_lookup.get(safe_int(row.get("impressao_id")), ""),
+                "Material": filamento.get("material", "") if isinstance(filamento, dict) else "",
+                "Cor": cor_nome or cor_hex,
+                "Marca": filamento.get("marca", "") if isinstance(filamento, dict) else "",
+                "Peso usado (g)": parse_float(row.get("peso_usado_g", 0)),
+                "Observação": row.get("observacao", ""),
+                "Data": row.get("created_at", ""),
+            }
+        )
+    st.dataframe(pd.DataFrame(consumo_rows), hide_index=True, use_container_width=True)
+
+
+def open_order_details_dialog(order_row):
+    title = f"Detalhes da encomenda | ID {order_row['id']}"
+    if hasattr(st, "dialog"):
+        @st.dialog(title)
+        def _details_dialog():
+            render_order_detail_content(order_row)
+
+        _details_dialog()
+    else:
+        st.session_state["detalhes_encomenda_id"] = int(order_row["id"])
+
+
+def render_order_details_launcher(df_pedidos_filtrado):
+    if df_pedidos_filtrado.empty:
+        return
+
+    st.write("### Detalhes do pedido")
+    opcoes_detalhes = {
+        f"{row['Cliente']} | {row['Encomenda'] or row['Tipo de Projeto']} | ID {row['id']}": row
+        for _, row in df_pedidos_filtrado.iterrows()
+    }
+    col_select, col_button = st.columns([2, 1])
+    with col_select:
+        detalhe_escolhido = st.selectbox("Abrir detalhes da encomenda", list(opcoes_detalhes.keys()))
+    with col_button:
+        st.write("")
+        if st.button("Abrir detalhes", use_container_width=True):
+            open_order_details_dialog(opcoes_detalhes[detalhe_escolhido])
+
+    fallback_id = st.session_state.get("detalhes_encomenda_id")
+    if fallback_id:
+        registro = df_pedidos_filtrado[df_pedidos_filtrado["id"].astype(int) == int(fallback_id)]
+        if not registro.empty:
+            with st.expander("Detalhes da encomenda", expanded=True):
+                render_order_detail_content(registro.iloc[0])
+
+
 def render_bambu_lab(df_pedidos):
     st.markdown("<h2 style='color: #ffcc00;'>🖨️ Bambu Lab</h2>", unsafe_allow_html=True)
     printers = get_bambu_printers()
@@ -1410,6 +1526,7 @@ def render_encomendas(df_pedidos):
                 ],
                 use_container_width=True,
             )
+            render_order_details_launcher(df_pedidos_filtrado)
             col_salvar, col_excluir = st.columns(2)
             with col_salvar:
                 if st.button("Salvar alterações do prontuário", use_container_width=True):
