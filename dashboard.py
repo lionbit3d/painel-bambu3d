@@ -176,9 +176,28 @@ def parse_float(value):
         return 0.0
 
 
+def margin_multiplier_from_text(value):
+    if pd.isna(value):
+        return 3.0
+    if isinstance(value, str):
+        cleaned = value.replace("%", "").strip()
+        if not cleaned:
+            return 3.0
+        return parse_float(cleaned) / 100
+    return parse_float(value) / 100
+
+
+def format_margin_from_values(custo, preco):
+    custo = parse_float(custo)
+    preco = parse_float(preco)
+    if custo <= 0 or preco <= 0:
+        return "0%"
+    return f"{round((preco / custo) * 100):.0f}%"
+
+
 def calculate_order_values(peso_gramas, margem_texto):
     custo_calc = parse_float(peso_gramas) * 0.15
-    preco_calc = custo_calc * OPCOES_MARGEM.get(str(margem_texto), 3.0)
+    preco_calc = custo_calc * margin_multiplier_from_text(margem_texto)
     return round(custo_calc, 2), round(preco_calc, 2)
 
 
@@ -306,15 +325,40 @@ def sync_encomenda_changes(df_original, df_editado):
             continue
 
         linha_original = registro.iloc[0]
-        custo_calc, preco_calc = calculate_order_values(linha_editada["Peso (g)"], linha_editada["Margem"])
+        peso_editado = parse_float(linha_editada["Peso (g)"])
+        peso_original = parse_float(linha_original["Peso (g)"])
+        custo_original = parse_float(linha_original["Custo (R$)"])
+        preco_original = parse_float(linha_original["Preço Venda (R$)"])
+        custo_editado = parse_float(linha_editada["Custo (R$)"])
+        preco_editado = parse_float(linha_editada["Preço Venda (R$)"])
+
+        peso_mudou = peso_editado != peso_original
+        custo_mudou = round(custo_editado, 2) != round(custo_original, 2)
+        preco_mudou = round(preco_editado, 2) != round(preco_original, 2)
+        margem_mudou = str(linha_editada["Margem"]) != str(linha_original["Margem"])
+
+        if custo_mudou:
+            custo_final = custo_editado
+        elif peso_mudou:
+            custo_final = peso_editado * 0.15
+        else:
+            custo_final = custo_original
+
+        if preco_mudou:
+            preco_final = preco_editado
+            margem_final = format_margin_from_values(custo_final, preco_final)
+        else:
+            margem_final = linha_editada["Margem"]
+            preco_final = custo_final * margin_multiplier_from_text(margem_final)
+
         payload = {
             "cliente": linha_editada["Cliente"],
             "consultor": linha_editada["Consultor"],
             "tipo_projeto": linha_editada["Tipo de Projeto"],
-            "peso_g": parse_float(linha_editada["Peso (g)"]),
-            "custo_rs": custo_calc,
-            "preco_venda_rs": preco_calc,
-            "margem": linha_editada["Margem"],
+            "peso_g": peso_editado,
+            "custo_rs": round(custo_final, 2),
+            "preco_venda_rs": round(preco_final, 2),
+            "margem": margem_final,
             "status": linha_editada["Status"],
         }
         mudou = any(
@@ -322,8 +366,10 @@ def sync_encomenda_changes(df_original, df_editado):
                 str(linha_editada["Cliente"]) != str(linha_original["Cliente"]),
                 str(linha_editada["Consultor"]) != str(linha_original["Consultor"]),
                 str(linha_editada["Tipo de Projeto"]) != str(linha_original["Tipo de Projeto"]),
-                parse_float(linha_editada["Peso (g)"]) != parse_float(linha_original["Peso (g)"]),
-                str(linha_editada["Margem"]) != str(linha_original["Margem"]),
+                peso_mudou,
+                custo_mudou,
+                preco_mudou,
+                margem_mudou,
                 str(linha_editada["Status"]) != str(linha_original["Status"]),
             ]
         )
@@ -871,10 +917,9 @@ def render_encomendas(df_pedidos):
         )
 
         if not df_pedidos_filtrado.empty:
-            df_pedidos_exibicao = format_currency_columns(
-                df_pedidos_filtrado,
-                ["Custo (R$)", "Preço Venda (R$)"],
-            )
+            df_pedidos_exibicao = df_pedidos_filtrado.copy()
+            df_pedidos_exibicao["Custo (R$)"] = df_pedidos_exibicao["Custo (R$)"].apply(parse_float)
+            df_pedidos_exibicao["Preço Venda (R$)"] = df_pedidos_exibicao["Preço Venda (R$)"].apply(parse_float)
             tabela_editavel = st.data_editor(
                 df_pedidos_exibicao,
                 column_config={
@@ -897,9 +942,22 @@ def render_encomendas(df_pedidos):
                         step=1.0,
                         required=True,
                     ),
-                    "Margem": st.column_config.SelectboxColumn(
+                    "Custo (R$)": st.column_config.NumberColumn(
+                        "Custo (R$)",
+                        min_value=0.0,
+                        step=0.01,
+                        format="R$ %.2f",
+                        required=True,
+                    ),
+                    "Preço Venda (R$)": st.column_config.NumberColumn(
+                        "Preço Venda (R$)",
+                        min_value=0.0,
+                        step=0.01,
+                        format="R$ %.2f",
+                        required=True,
+                    ),
+                    "Margem": st.column_config.TextColumn(
                         "Margem",
-                        options=list(OPCOES_MARGEM.keys()),
                         required=True,
                     ),
                     "Status": st.column_config.SelectboxColumn(
@@ -910,8 +968,6 @@ def render_encomendas(df_pedidos):
                 },
                 disabled=[
                     "Data",
-                    "Custo (R$)",
-                    "Preço Venda (R$)",
                 ],
                 use_container_width=True,
             )
