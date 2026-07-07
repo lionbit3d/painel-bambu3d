@@ -264,7 +264,7 @@ def sync_encomenda_changes(df_original, df_editado):
             "cliente": linha_editada["Cliente"],
             "consultor": linha_editada["Consultor"],
             "tipo_projeto": linha_editada["Tipo de Projeto"],
-            "peso_g": parse_float(linha_editada["Peso (g)"),
+            "peso_g": parse_float(linha_editada["Peso (g)"]),
             "custo_rs": custo_calc,
             "preco_venda_rs": preco_calc,
             "margem": linha_editada["Margem"],
