@@ -357,6 +357,53 @@ def get_bambu_printers():
     return printers
 
 
+
+
+def get_bambu_gateway_config():
+    config = get_secret_section("bambu_gateway")
+    url = str(config.get("url", "")).rstrip("/")
+    token = str(config.get("token", ""))
+    return {
+        "url": url,
+        "token": token,
+        "enabled": bool(url and token),
+    }
+
+
+def gateway_request(path, method="GET", timeout=35):
+    gateway = get_bambu_gateway_config()
+    if not gateway["enabled"]:
+        return None
+
+    try:
+        response = requests.request(
+            method,
+            f"{gateway['url']}{path}",
+            headers={"X-Lionbit-Token": gateway["token"]},
+            timeout=timeout,
+        )
+        payload = response.json()
+    except requests.RequestException as exc:
+        return {"ok": False, "message": f"Gateway indisponivel: {exc}", "data": {}}
+    except ValueError:
+        return {"ok": False, "message": "Gateway retornou resposta invalida", "data": {}}
+
+    if response.status_code >= 400 and payload.get("ok") is not False:
+        payload = {"ok": False, "message": f"Gateway retornou HTTP {response.status_code}", "data": payload}
+    payload.setdefault("data", {})
+    return payload
+
+
+def read_bambu_status_via_gateway():
+    return gateway_request("/status", timeout=45)
+
+
+def send_bambu_light_command_via_gateway(mode):
+    result = gateway_request(f"/light/{mode}", method="POST", timeout=30)
+    if not result:
+        return False, "Gateway nao configurado"
+    return bool(result.get("ok")), result.get("message", "Sem resposta do gateway")
+
 def test_tcp_connection(host, port, timeout=2):
     if not host:
         return False, "IP pendente"
@@ -504,15 +551,21 @@ def render_bambu_lab():
     selected_name = st.selectbox("Impressora", [printer["name"] for printer in printers])
     printer = next(printer for printer in printers if printer["name"] == selected_name)
 
+    gateway_config = get_bambu_gateway_config()
+
     col_status, col_actions = st.columns([2, 1])
     with col_status:
         st.write(f"### {printer['name']}")
         st.write(f"IP: {printer['host'] or '-'}")
         st.write(f"Serial: {'configurado' if printer['serial'] else '-'}")
+        st.write(f"Conexao: {'Cloudflare Tunnel' if gateway_config['enabled'] else 'Direta'}")
 
         if st.button("Atualizar impressora", use_container_width=True):
             with st.spinner("Consultando impressora..."):
-                st.session_state["bambu_status"] = read_bambu_status(printer)
+                if gateway_config["enabled"]:
+                    st.session_state["bambu_status"] = read_bambu_status_via_gateway()
+                else:
+                    st.session_state["bambu_status"] = read_bambu_status(printer)
 
         status = st.session_state.get("bambu_status")
         if status:
@@ -543,14 +596,20 @@ def render_bambu_lab():
         st.write("### Controles")
         if st.button("Ligar luz", use_container_width=True):
             with st.spinner("Enviando comando..."):
-                ok, message = send_bambu_light_command(printer, "on")
+                if gateway_config["enabled"]:
+                    ok, message = send_bambu_light_command_via_gateway("on")
+                else:
+                    ok, message = send_bambu_light_command(printer, "on")
             if ok:
                 st.success(message)
             else:
                 st.error(message)
         if st.button("Desligar luz", use_container_width=True):
             with st.spinner("Enviando comando..."):
-                ok, message = send_bambu_light_command(printer, "off")
+                if gateway_config["enabled"]:
+                    ok, message = send_bambu_light_command_via_gateway("off")
+                else:
+                    ok, message = send_bambu_light_command(printer, "off")
             if ok:
                 st.success(message)
             else:
