@@ -1125,17 +1125,17 @@ render_global_metrics(df_pedidos, df_varejo)
 st.markdown("---")
 
 PANEL_OPTIONS = {
-    "producao": "?? Fluxo de Encomendas",
-    "varejo": "?? Estoque e Com?rcio Varejo",
-    "desempenho": "?? Desempenho de Lojas",
-    "bambu": "??? Bambu Lab",
+    "producao": "Fluxo de Encomendas",
+    "varejo": "Estoque e Comercio Varejo",
+    "desempenho": "Desempenho de Lojas",
+    "bambu": "Bambu Lab",
 }
 st.session_state.setdefault("opcao_painel", "producao")
 
 nav_cols = st.columns(4)
 for nav_col, (panel_key, panel_label) in zip(nav_cols, PANEL_OPTIONS.items()):
     with nav_col:
-        label = f"? {panel_label}" if st.session_state["opcao_painel"] == panel_key else panel_label
+        label = f"Selecionado - {panel_label}" if st.session_state["opcao_painel"] == panel_key else panel_label
         if st.button(label, key=f"nav_{panel_key}", use_container_width=True):
             st.session_state["opcao_painel"] = panel_key
             st.rerun()
