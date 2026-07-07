@@ -532,16 +532,39 @@ def send_bambu_light_command(printer, mode):
         return False, str(exc)
 
 
+def format_print_state(value):
+    state = str(value or "-").strip().upper()
+    state_labels = {
+        "RUNNING": "Imprimindo",
+        "FINISH": "Finalizado",
+        "FAILED": "Falhou",
+        "PAUSE": "Pausado",
+        "PAUSED": "Pausado",
+        "PREPARE": "Preparando",
+        "IDLE": "Parada",
+    }
+    return state_labels.get(state, str(value or "-"))
+
+
+def format_remaining_time(value):
+    try:
+        total_minutes = int(float(value))
+    except (TypeError, ValueError):
+        total_minutes = 0
+    hours, minutes = divmod(max(total_minutes, 0), 60)
+    return f"{hours}h{minutes:02d}min"
+
+
 def pick_print_data(status_data):
     print_data = status_data.get("print", {}) if isinstance(status_data, dict) else {}
     return {
-        "estado": print_data.get("gcode_state", "-"),
+        "estado": format_print_state(print_data.get("gcode_state", "-")),
         "arquivo": print_data.get("gcode_file", "-"),
         "progresso": print_data.get("mc_percent", 0),
         "bico": print_data.get("nozzle_temper", "-"),
         "mesa": print_data.get("bed_temper", "-"),
         "camara": print_data.get("chamber_temper", "-"),
-        "tempo_restante": print_data.get("mc_remaining_time", "-"),
+        "tempo_restante": format_remaining_time(print_data.get("mc_remaining_time", 0)),
     }
 
 
@@ -581,7 +604,7 @@ def render_bambu_lab():
                         [
                             {
                                 "Arquivo": data["arquivo"],
-                                "Tempo restante (min)": data["tempo_restante"],
+                                "Tempo restante": data["tempo_restante"],
                                 "Camara (°C)": data["camara"],
                             }
                         ]
