@@ -1124,18 +1124,29 @@ render_global_metrics(df_pedidos, df_varejo)
 
 st.markdown("---")
 
-opcao_painel = st.segmented_control(
-    "Área do painel",
-    ['🏭 Fluxo de Encomendas', '🏪 Estoque e Comércio Varejo', '📊 Desempenho de Lojas', '🖨️ Bambu Lab'],
-    default='🏭 Fluxo de Encomendas',
-    label_visibility="collapsed",
-)
+PANEL_OPTIONS = {
+    "producao": "?? Fluxo de Encomendas",
+    "varejo": "?? Estoque e Com?rcio Varejo",
+    "desempenho": "?? Desempenho de Lojas",
+    "bambu": "??? Bambu Lab",
+}
+st.session_state.setdefault("opcao_painel", "producao")
 
-if opcao_painel == '🏭 Fluxo de Encomendas':
+nav_cols = st.columns(4)
+for nav_col, (panel_key, panel_label) in zip(nav_cols, PANEL_OPTIONS.items()):
+    with nav_col:
+        label = f"? {panel_label}" if st.session_state["opcao_painel"] == panel_key else panel_label
+        if st.button(label, key=f"nav_{panel_key}", use_container_width=True):
+            st.session_state["opcao_painel"] = panel_key
+            st.rerun()
+
+opcao_painel = st.session_state["opcao_painel"]
+
+if opcao_painel == "producao":
     render_encomendas(df_pedidos)
-elif opcao_painel == '🏪 Estoque e Comércio Varejo':
+elif opcao_painel == "varejo":
     render_varejo(df_varejo)
-elif opcao_painel == '📊 Desempenho de Lojas':
+elif opcao_painel == "desempenho":
     render_desempenho_lojas(df_varejo)
-elif opcao_painel == '🖨️ Bambu Lab':
+elif opcao_painel == "bambu":
     render_bambu_lab(df_pedidos)
