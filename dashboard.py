@@ -816,7 +816,7 @@ def render_bambu_order_linking(printer, print_data, df_pedidos):
                 st.error("Nao consegui finalizar essa impressao.")
     with col_concluir:
         if st.button("Marcar pedido como concluido", use_container_width=True):
-            if update_encomenda_status(job["encomenda_id"], "Conclu?do"):
+            if update_encomenda_status(job["encomenda_id"], "Concluído"):
                 st.success("Pedido marcado como concluido.")
                 st.rerun()
             else:
