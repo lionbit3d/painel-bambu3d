@@ -255,6 +255,62 @@ design_premium = """
         font-weight: 800;
         border: 1px solid rgba(255,255,255,0.22);
     }
+    .lion-detail-metrics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin: 0.45rem 0 1rem 0;
+    }
+    .lion-detail-card {
+        background: #1b1b1b;
+        border: 1px solid #3a3a3a;
+        border-radius: 8px;
+        padding: 9px 10px;
+        min-width: 0;
+    }
+    .lion-detail-label {
+        color: #ffcc00 !important;
+        font-size: 0.72rem;
+        line-height: 1.1;
+        font-weight: 800;
+        margin-bottom: 5px;
+    }
+    .lion-detail-value {
+        color: #ffffff !important;
+        font-size: 0.9rem;
+        line-height: 1.15;
+        font-weight: 800;
+        overflow-wrap: anywhere;
+    }
+    .lion-detail-table {
+        border: 1px solid #3a3a3a;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #181818;
+        margin: 0.35rem 0 1rem 0;
+    }
+    .lion-detail-row {
+        display: grid;
+        grid-template-columns: minmax(150px, 1.8fr) 90px 84px 112px minmax(160px, 1.4fr);
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-bottom: 1px solid #2d2d2d;
+        font-size: 0.82rem;
+    }
+    .lion-detail-row:last-child {
+        border-bottom: 0;
+    }
+    .lion-detail-head {
+        background: #242424;
+        color: #ffcc00 !important;
+        font-weight: 800;
+        font-size: 0.78rem;
+    }
+    .lion-detail-cell {
+        color: #ffffff !important;
+        overflow-wrap: anywhere;
+    }
 </style>
 """
 st.markdown(design_premium, unsafe_allow_html=True)
@@ -1231,6 +1287,42 @@ def render_encomenda_status_overview(df_pedidos_filtrado):
     st.markdown(f"<div class='lion-status-board'>{''.join(rows)}</div>", unsafe_allow_html=True)
 
 
+def render_detail_metrics(metrics):
+    cards = []
+    for label, value in metrics:
+        cards.append(
+            "<div class='lion-detail-card'>"
+            f"<div class='lion-detail-label'>{escape(str(label))}</div>"
+            f"<div class='lion-detail-value'>{escape(str(value))}</div>"
+            "</div>"
+        )
+    st.markdown(f"<div class='lion-detail-metrics'>{''.join(cards)}</div>", unsafe_allow_html=True)
+
+
+def render_print_jobs_detail_table(jobs_order, colors_by_job):
+    header = ["Arquivo", "Status", "Progresso", "Tempo restante", "Cores HEX"]
+    rows = [
+        "<div class='lion-detail-row lion-detail-head'>"
+        + "".join([f"<div>{escape(col)}</div>" for col in header])
+        + "</div>"
+    ]
+    for _, row in jobs_order.iterrows():
+        job_id = int(row["id"]) if not pd.isna(row.get("id")) else None
+        color_chips = colors_by_job.get(job_id, "")
+        if not color_chips:
+            color_chips = "<span class='lion-color-sub'>Sem baixa registrada</span>"
+        rows.append(
+            "<div class='lion-detail-row'>"
+            f"<div class='lion-detail-cell'>{escape(str(row.get('arquivo', '') or ''))}</div>"
+            f"<div class='lion-detail-cell'>{escape(str(row.get('status', '') or ''))}</div>"
+            f"<div class='lion-detail-cell'>{escape(str(row.get('progresso', 0) or 0))}%</div>"
+            f"<div class='lion-detail-cell'>{escape(format_remaining_time(row.get('tempo_restante_min', 0)))}</div>"
+            f"<div class='lion-detail-cell'>{color_chips}</div>"
+            "</div>"
+        )
+    st.markdown(f"<div class='lion-detail-table'>{''.join(rows)}</div>", unsafe_allow_html=True)
+
+
 def render_order_detail_content(order_row):
     def safe_int(value):
         try:
@@ -1257,29 +1349,14 @@ def render_order_detail_content(order_row):
     st.write(f"### {order_row.get('Encomenda', '') or order_row.get('Tipo de Projeto', '')}")
     st.caption(f"Cliente: {order_row.get('Cliente', '')} | Consultor: {order_row.get('Consultor', '')} | ID {encomenda_id}")
 
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Status do pedido", str(order_row.get("Status", "-")))
-    m2.metric("Mesas vinculadas", len(jobs_order))
-    m3.metric("Mesas finalizadas", finalizadas)
-    m4.metric("Filamento baixado", f"{total_consumido:.0f}g")
-
-    st.write("#### Impressões vinculadas")
-    if jobs_order.empty:
-        st.info("Nenhuma impressão vinculada a esta encomenda ainda.")
-    else:
-        jobs_view = jobs_order.copy()
-        jobs_view["Tempo restante"] = jobs_view["tempo_restante_min"].apply(format_remaining_time)
-        jobs_view["Finalizada em"] = jobs_view["finalizada_em"].fillna("")
-        st.dataframe(
-            jobs_view[["arquivo", "status", "progresso", "Tempo restante", "Finalizada em"]],
-            hide_index=True,
-            use_container_width=True,
-        )
-
-    st.write("#### Filamentos usados")
-    if consumo_order.empty:
-        st.info("Nenhuma baixa de filamento registrada para esta encomenda.")
-        return
+    render_detail_metrics(
+        [
+            ("Status do pedido", str(order_row.get("Status", "-"))),
+            ("Mesas vinculadas", len(jobs_order)),
+            ("Mesas finalizadas", finalizadas),
+            ("Filamento baixado", f"{total_consumido:.0f}g"),
+        ]
+    )
 
     jobs_lookup = {
         safe_int(row["id"]): row.get("arquivo", "")
@@ -1291,6 +1368,33 @@ def render_order_detail_content(order_row):
         for _, row in filamentos.iterrows()
         if safe_int(row.get("id")) is not None
     }
+    colors_by_job = {}
+    if not consumo_order.empty:
+        for _, row in consumo_order.iterrows():
+            job_id = safe_int(row.get("impressao_id"))
+            filamento = filamentos_lookup.get(safe_int(row.get("filamento_id")), {})
+            cor_hex = filamento.get("cor_hex", "") if isinstance(filamento, dict) else ""
+            cor_nome = filamento.get("cor_nome", "") if isinstance(filamento, dict) else ""
+            if job_id is not None and (cor_hex or cor_nome):
+                colors_by_job.setdefault(job_id, [])
+                label = cor_nome or cor_hex
+                colors_by_job[job_id].append(color_chip_html(cor_hex, label))
+    colors_by_job = {
+        job_id: "".join(dict.fromkeys(chips))
+        for job_id, chips in colors_by_job.items()
+    }
+
+    st.write("#### Impressões vinculadas")
+    if jobs_order.empty:
+        st.info("Nenhuma impressão vinculada a esta encomenda ainda.")
+    else:
+        render_print_jobs_detail_table(jobs_order, colors_by_job)
+
+    st.write("#### Filamentos usados")
+    if consumo_order.empty:
+        st.info("Nenhuma baixa de filamento registrada para esta encomenda.")
+        return
+
     consumo_rows = []
     for _, row in consumo_order.iterrows():
         filamento = filamentos_lookup.get(safe_int(row.get("filamento_id")), {})
