@@ -140,6 +140,23 @@ design_premium = """
     span[class*="text"], input[class*="edit"] {
         color: #ffffff !important;
     }
+
+    div[data-testid="stSegmentedControl"] button {
+        background-color: #1e1e1e !important;
+        color: #ffffff !important;
+        border: 1px solid #ffcc00 !important;
+        font-weight: bold !important;
+    }
+    div[data-testid="stSegmentedControl"] button * {
+        color: #ffffff !important;
+    }
+    div[data-testid="stSegmentedControl"] button[aria-pressed="true"] {
+        background-color: #ffcc00 !important;
+        color: #000000 !important;
+    }
+    div[data-testid="stSegmentedControl"] button[aria-pressed="true"] * {
+        color: #000000 !important;
+    }
 </style>
 """
 st.markdown(design_premium, unsafe_allow_html=True)
