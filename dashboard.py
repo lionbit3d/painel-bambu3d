@@ -1,7 +1,16 @@
 import streamlit as st
 import pandas as pd
+import json
+import socket
+import ssl
+import time
 from datetime import datetime, timedelta, timezone
 import requests
+
+try:
+    import paho.mqtt.client as mqtt
+except ImportError:
+    mqtt = None
 
 
 st.set_page_config(page_title="LionBit 3D Studio - Painel de Controle", layout="wide")
@@ -304,6 +313,204 @@ def delete_encomenda(encomenda_id):
     return response.status_code in [200, 204]
 
 
+def get_secret_section(section_name):
+    try:
+        return dict(st.secrets.get(section_name, {}))
+    except Exception:
+        return {}
+
+
+def get_bambu_printers():
+    printers = []
+    for section_name, fallback_name in [("bambu_isaac", "Isaac"), ("bambu_renato", "Renato")]:
+        config = get_secret_section(section_name)
+        printers.append(
+            {
+                "name": config.get("name", fallback_name),
+                "host": config.get("host", ""),
+                "access_code": config.get("access_code", ""),
+                "serial": config.get("serial", ""),
+                "port": int(config.get("port", 8883) or 8883),
+            }
+        )
+    return printers
+
+
+def test_tcp_connection(host, port, timeout=3):
+    if not host:
+        return False, "IP pendente"
+    try:
+        with socket.create_connection((host, int(port)), timeout=timeout):
+            return True, "Porta acessivel"
+    except OSError as exc:
+        return False, str(exc)
+
+
+def mqtt_client_factory():
+    if mqtt is None:
+        return None
+
+    client_id = f"lionbit-streamlit-{int(time.time())}"
+    try:
+        client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, client_id=client_id, protocol=mqtt.MQTTv311)
+    except Exception:
+        client = mqtt.Client(client_id=client_id, protocol=mqtt.MQTTv311)
+    client.tls_set(cert_reqs=ssl.CERT_NONE)
+    client.tls_insecure_set(True)
+    return client
+
+
+def read_bambu_status(printer, timeout=6):
+    required_fields = ["host", "access_code", "serial"]
+    missing = [field for field in required_fields if not printer.get(field)]
+    if missing:
+        return {"ok": False, "message": f"Config pendente: {', '.join(missing)}", "data": {}}
+    if mqtt is None:
+        return {"ok": False, "message": "Dependencia paho-mqtt ausente", "data": {}}
+
+    tcp_ok, tcp_message = test_tcp_connection(printer["host"], printer["port"])
+    if not tcp_ok:
+        return {"ok": False, "message": tcp_message, "data": {}}
+
+    messages = []
+    connection = {"rc": None}
+    topic = f"device/{printer['serial']}/report"
+    client = mqtt_client_factory()
+    client.username_pw_set("bblp", printer["access_code"])
+
+    def on_connect(client, userdata, flags, rc):
+        connection["rc"] = rc
+        if rc == 0:
+            client.subscribe(topic, qos=0)
+
+    def on_message(client, userdata, message):
+        try:
+            messages.append(json.loads(message.payload.decode("utf-8")))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            messages.append({"raw": message.payload.decode("utf-8", errors="replace")})
+
+    client.on_connect = on_connect
+    client.on_message = on_message
+
+    try:
+        client.connect(printer["host"], printer["port"], keepalive=30)
+        client.loop_start()
+        started = time.time()
+        while time.time() - started < timeout and not messages:
+            time.sleep(0.25)
+        client.loop_stop()
+        client.disconnect()
+    except Exception as exc:
+        return {"ok": False, "message": str(exc), "data": {}}
+
+    if connection["rc"] not in [0, None]:
+        return {"ok": False, "message": f"MQTT recusou conexao: {connection['rc']}", "data": {}}
+    if not messages:
+        return {"ok": False, "message": "Conectou, mas nao recebeu dados", "data": {}}
+    return {"ok": True, "message": "Online", "data": messages[-1]}
+
+
+def send_bambu_light_command(printer, mode):
+    required_fields = ["host", "access_code", "serial"]
+    missing = [field for field in required_fields if not printer.get(field)]
+    if missing:
+        return False, f"Config pendente: {', '.join(missing)}"
+    if mqtt is None:
+        return False, "Dependencia paho-mqtt ausente"
+
+    tcp_ok, tcp_message = test_tcp_connection(printer["host"], printer["port"])
+    if not tcp_ok:
+        return False, tcp_message
+
+    client = mqtt_client_factory()
+    client.username_pw_set("bblp", printer["access_code"])
+    payload = {
+        "system": {
+            "sequence_id": str(int(time.time())),
+            "command": "ledctrl",
+            "led_node": "chamber_light",
+            "led_mode": mode,
+            "led_on_time": 500,
+            "led_off_time": 500,
+            "loop_times": 1,
+            "interval_time": 1000,
+        }
+    }
+    try:
+        client.connect(printer["host"], printer["port"], keepalive=30)
+        client.loop_start()
+        client.publish(f"device/{printer['serial']}/request", json.dumps(payload), qos=0)
+        time.sleep(0.5)
+        client.loop_stop()
+        client.disconnect()
+        return True, "Comando enviado"
+    except Exception as exc:
+        return False, str(exc)
+
+
+def pick_print_data(status_data):
+    print_data = status_data.get("print", {}) if isinstance(status_data, dict) else {}
+    return {
+        "estado": print_data.get("gcode_state", "-"),
+        "arquivo": print_data.get("gcode_file", "-"),
+        "progresso": print_data.get("mc_percent", 0),
+        "bico": print_data.get("nozzle_temper", "-"),
+        "mesa": print_data.get("bed_temper", "-"),
+        "camara": print_data.get("chamber_temper", "-"),
+        "tempo_restante": print_data.get("mc_remaining_time", "-"),
+    }
+
+
+def render_bambu_lab():
+    st.markdown("<h2 style='color: #ffcc00;'>🖨️ Bambu Lab</h2>", unsafe_allow_html=True)
+    printers = get_bambu_printers()
+    selected_name = st.selectbox("Impressora", [printer["name"] for printer in printers])
+    printer = next(printer for printer in printers if printer["name"] == selected_name)
+
+    col_status, col_actions = st.columns([2, 1])
+    with col_status:
+        st.write(f"### {printer['name']}")
+        st.write(f"IP: {printer['host'] or '-'}")
+        st.write(f"Serial: {'configurado' if printer['serial'] else '-'}")
+
+        if st.button("Atualizar impressora", use_container_width=True):
+            st.session_state["bambu_status"] = read_bambu_status(printer)
+
+        status = st.session_state.get("bambu_status")
+        if status:
+            if status["ok"]:
+                data = pick_print_data(status["data"])
+                m1, m2, m3, m4 = st.columns(4)
+                m1.metric("Estado", data["estado"])
+                m2.metric("Progresso", f"{data['progresso']}%")
+                m3.metric("Bico", f"{data['bico']} °C")
+                m4.metric("Mesa", f"{data['mesa']} °C")
+                st.dataframe(
+                    pd.DataFrame(
+                        [
+                            {
+                                "Arquivo": data["arquivo"],
+                                "Tempo restante (min)": data["tempo_restante"],
+                                "Camara (°C)": data["camara"],
+                            }
+                        ]
+                    ),
+                    hide_index=True,
+                    use_container_width=True,
+                )
+            else:
+                st.warning(status["message"])
+
+    with col_actions:
+        st.write("### Controles")
+        if st.button("Ligar luz", use_container_width=True):
+            ok, message = send_bambu_light_command(printer, "on")
+            st.success(message) if ok else st.error(message)
+        if st.button("Desligar luz", use_container_width=True):
+            ok, message = send_bambu_light_command(printer, "off")
+            st.success(message) if ok else st.error(message)
+
+
 def render_encomendas(df_pedidos):
     st.markdown("<h2 style='color: #ffcc00;'>📋 Gestão de Encomendas Ativas</h2>", unsafe_allow_html=True)
     col_form, col_tab = st.columns([1, 2])
@@ -504,8 +711,8 @@ render_global_metrics(df_pedidos, df_varejo)
 
 st.markdown("---")
 
-aba_producao, aba_varejo, aba_graficos = st.tabs(
-    ["🏭 Fluxo de Encomendas", "🏪 Estoque e Comércio Varejo", "📊 Desempenho de Lojas"]
+aba_producao, aba_varejo, aba_graficos, aba_bambu = st.tabs(
+    ["🏭 Fluxo de Encomendas", "🏪 Estoque e Comércio Varejo", "📊 Desempenho de Lojas", "🖨️ Bambu Lab"]
 )
 
 with aba_producao:
@@ -516,3 +723,6 @@ with aba_varejo:
 
 with aba_graficos:
     render_desempenho_lojas(df_varejo)
+
+with aba_bambu:
+    render_bambu_lab()
