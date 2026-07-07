@@ -19,6 +19,7 @@ HEADERS = {
 PEDIDOS_COLUMNS = [
     "id",
     "Cliente",
+    "Consultor",
     "Data",
     "Tipo de Projeto",
     "Peso (g)",
@@ -52,6 +53,7 @@ LISTA_PROJETOS = [
 
 OPCOES_MARGEM = {"250%": 2.5, "300%": 3.0, "350%": 3.5, "400%": 4.0}
 STATUS_OPTIONS = ["Pendente", "Imprimindo", "Concluído"]
+CONSULTORES = ["Isaac", "Renato"]
 
 design_premium = """
 <style>
@@ -73,6 +75,16 @@ design_premium = """
     div[data-testid="stTableEditor"], div.glide-data-grid, .gdg-elements {
         background-color: #1a1a1a !important;
     }
+    div[data-testid="stTableEditor"] button, div[data-testid="stDataFrame"] button {
+        background-color: #ffffff !important;
+        color: #111111 !important;
+        border: 1px solid #d0d0d0 !important;
+    }
+    div[data-testid="stTableEditor"] button svg, div[data-testid="stDataFrame"] button svg {
+        color: #111111 !important;
+        fill: #111111 !important;
+        stroke: #111111 !important;
+    }
     div[class*="popover"], div[class*="dropdown"], div[class*="menu"] {
         background-color: #1e1e1e !important;
         color: #ffffff !important;
@@ -83,6 +95,22 @@ design_premium = """
 </style>
 """
 st.markdown(design_premium, unsafe_allow_html=True)
+
+
+def format_brl(value):
+    try:
+        formatted = f"R$ {float(value):,.2f}"
+        return formatted.replace(",", "X").replace(".", ",").replace("X", ".")
+    except (TypeError, ValueError):
+        return "R$ 0,00"
+
+
+def format_currency_columns(df, columns):
+    df_formatado = df.copy()
+    for column in columns:
+        if column in df_formatado.columns:
+            df_formatado[column] = df_formatado[column].apply(format_brl)
+    return df_formatado
 
 
 def empty_pedidos():
@@ -101,7 +129,9 @@ def load_pedidos():
         if not df.empty:
             df = df.rename(
                 columns={
+                    "cliente": "Cliente",
                     "data_solicitacao": "Data",
+                    "consultor": "Consultor",
                     "tipo_projeto": "Tipo de Projeto",
                     "peso_g": "Peso (g)",
                     "custo_rs": "Custo (R$)",
@@ -184,9 +214,9 @@ def render_global_metrics(df_pedidos, df_varejo):
 
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("📦 Total de Pedidos Ativos", len(df_pedidos) + len(df_varejo))
-    col2.metric("📉 Custo Total de Material", f"R$ {custo_global:.2f}")
-    col3.metric("💰 Faturamento Bruto", f"R$ {faturamento_global:.2f}")
-    col4.metric("🔥 Lucro Líquido Geral", f"R$ {lucro_global:.2f}")
+    col2.metric("📉 Custo Total de Material", format_brl(custo_global))
+    col3.metric("💰 Faturamento Bruto", format_brl(faturamento_global))
+    col4.metric("🔥 Lucro Líquido Geral", format_brl(lucro_global))
 
 
 def sync_status_changes(df_original, df_editado):
@@ -221,6 +251,7 @@ def render_encomendas(df_pedidos):
         st.write("### ➕ Nova Encomenda")
         with st.form("form_encomenda", clear_on_submit=True):
             cliente = st.text_input("Nome do Cliente")
+            consultor = st.selectbox("Consultor", CONSULTORES)
             data_sel = st.date_input("Data de Solicitação", datetime.now(), format="DD/MM/YYYY")
             tipo_projeto = st.selectbox("Tipo de Projeto", LISTA_PROJETOS)
             peso_gramas = st.number_input("Peso em Gramas (g)", min_value=0.0, step=1.0)
@@ -235,6 +266,7 @@ def render_encomendas(df_pedidos):
 
                     payload = {
                         "cliente": cliente,
+                        "consultor": consultor,
                         "data_solicitacao": data_br,
                         "tipo_projeto": tipo_projeto,
                         "peso_g": peso_gramas,
@@ -255,8 +287,12 @@ def render_encomendas(df_pedidos):
         )
 
         if not df_pedidos_filtrado.empty:
-            tabela_editavel = st.data_editor(
+            df_pedidos_exibicao = format_currency_columns(
                 df_pedidos_filtrado,
+                ["Custo (R$)", "Preço Venda (R$)"],
+            )
+            tabela_editavel = st.data_editor(
+                df_pedidos_exibicao,
                 column_config={
                     "id": None,
                     "Status": st.column_config.SelectboxColumn(
@@ -267,6 +303,7 @@ def render_encomendas(df_pedidos):
                 },
                 disabled=[
                     "Cliente",
+                    "Consultor",
                     "Data",
                     "Tipo de Projeto",
                     "Peso (g)",
@@ -323,6 +360,10 @@ def render_varejo(df_varejo):
             df_varejo_exibicao["Estoque Restante"] = (
                 df_varejo_exibicao["Quantidade Enviada"] - df_varejo_exibicao["Quantidade Vendida"]
             )
+            df_varejo_exibicao = format_currency_columns(
+                df_varejo_exibicao,
+                ["Custo Unit. (R$)", "Preço Unit. Venda (R$)"],
+            )
             st.dataframe(
                 df_varejo_exibicao[
                     [
@@ -355,6 +396,7 @@ def render_desempenho_lojas(df_varejo):
         .sum()
         .sort_values("Total Faturamento Real", ascending=False)
     )
+    desempenho = format_currency_columns(desempenho, ["Total Faturamento Real", "Lucro Gerado (R$)"])
     st.dataframe(desempenho, use_container_width=True)
 
 
