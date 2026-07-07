@@ -73,6 +73,9 @@ design_premium = """
     li[role="option"]:hover { background-color: #ffcc00 !important; color: #000000 !important; }
     .stFormSubmitButton > button { background-color: #ffcc00 !important; color: #000000 !important; font-weight: bold !important; border: 2px solid #ffcc00 !important; border-radius: 5px !important; width: 100% !important; padding: 10px 0px !important; }
     .stFormSubmitButton > button:hover { background-color: #e6b800 !important; color: #000000 !important; border-color: #e6b800 !important; }
+    .stButton > button { background-color: #ffcc00 !important; color: #000000 !important; font-weight: bold !important; border: 2px solid #ffcc00 !important; border-radius: 5px !important; width: 100% !important; }
+    .stButton > button:hover { background-color: #e6b800 !important; color: #000000 !important; border-color: #e6b800 !important; }
+    .stButton > button p, .stButton > button span { color: #000000 !important; }
     div[data-testid="stTableEditor"], div.glide-data-grid, .gdg-elements {
         background-color: #1a1a1a !important;
     }
