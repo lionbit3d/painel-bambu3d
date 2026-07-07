@@ -1,11 +1,13 @@
 import streamlit as st
 import pandas as pd
 import json
+import re
 import ipaddress
 import socket
 import ssl
 import time
 import warnings
+from html import escape
 from datetime import datetime, timedelta, timezone
 import requests
 
@@ -90,6 +92,12 @@ OPCOES_MARGEM = {"250%": 2.5, "300%": 3.0, "350%": 3.5, "400%": 4.0}
 STATUS_OPTIONS = ["Pendente", "Imprimindo", "Concluído"]
 CONSULTORES = ["Isaac", "Renato"]
 BRASILIA_TZ = timezone(timedelta(hours=-3))
+STATUS_BADGE_COLORS = {
+    "Pendente": ("#ffcc00", "#111111"),
+    "Imprimindo": ("#9ca3af", "#111111"),
+    "Concluído": ("#22c55e", "#06130a"),
+    "Concluido": ("#22c55e", "#06130a"),
+}
 
 
 def is_private_host(host):
@@ -192,6 +200,58 @@ design_premium = """
         color: #000000 !important;
         fill: #000000 !important;
     }
+    .lion-status-board, .lion-color-table {
+        border: 1px solid #3a3a3a;
+        border-radius: 8px;
+        overflow: hidden;
+        margin: 0.5rem 0 1rem 0;
+        background: #181818;
+    }
+    .lion-status-row, .lion-color-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 10px 12px;
+        border-bottom: 1px solid #2d2d2d;
+    }
+    .lion-color-row {
+        grid-template-columns: 90px minmax(0, 1fr) 120px 90px 90px 90px 110px;
+    }
+    .lion-status-row:last-child, .lion-color-row:last-child {
+        border-bottom: 0;
+    }
+    .lion-color-head {
+        background: #242424;
+        color: #ffcc00 !important;
+        font-weight: 700;
+    }
+    .lion-status-title, .lion-color-main {
+        color: #ffffff !important;
+        font-weight: 700;
+    }
+    .lion-status-sub, .lion-color-sub {
+        color: #c9c9c9 !important;
+        font-size: 0.88rem;
+    }
+    .lion-swatch {
+        width: 34px;
+        height: 22px;
+        border-radius: 5px;
+        border: 1px solid rgba(255,255,255,0.45);
+        display: inline-block;
+        vertical-align: middle;
+        margin-right: 8px;
+    }
+    .lion-badge {
+        display: inline-block;
+        min-width: 92px;
+        text-align: center;
+        padding: 5px 10px;
+        border-radius: 999px;
+        font-weight: 800;
+        border: 1px solid rgba(255,255,255,0.22);
+    }
 </style>
 """
 st.markdown(design_premium, unsafe_allow_html=True)
@@ -203,6 +263,43 @@ def format_brl(value):
         return formatted.replace(",", "X").replace(".", ",").replace("X", ".")
     except (TypeError, ValueError):
         return "R$ 0,00"
+
+
+def normalize_hex_color(value):
+    cleaned = str(value or "").strip().replace("#", "")
+    if re.fullmatch(r"[0-9a-fA-F]{8}", cleaned):
+        cleaned = cleaned[:6]
+    if re.fullmatch(r"[0-9a-fA-F]{6}", cleaned):
+        return f"#{cleaned.upper()}"
+    if re.fullmatch(r"[0-9a-fA-F]{3}", cleaned):
+        return f"#{cleaned.upper()}"
+    return "#262626"
+
+
+def contrast_text_color(hex_color):
+    color = normalize_hex_color(hex_color).lstrip("#")
+    if len(color) == 3:
+        color = "".join([char * 2 for char in color])
+    red, green, blue = [int(color[index:index + 2], 16) for index in (0, 2, 4)]
+    brightness = (red * 299 + green * 587 + blue * 114) / 1000
+    return "#111111" if brightness > 150 else "#ffffff"
+
+
+def status_badge_html(status):
+    label = str(status or "").strip() or "Pendente"
+    background, foreground = STATUS_BADGE_COLORS.get(label, ("#6b7280", "#ffffff"))
+    return (
+        f"<span class='lion-badge' style='background:{background}; color:{foreground} !important;'>"
+        f"{escape(label)}</span>"
+    )
+
+
+def color_swatch_html(hex_value, label=""):
+    color = normalize_hex_color(hex_value)
+    text = str(hex_value or "").strip() or "Sem HEX"
+    label_text = str(label or "").strip()
+    display = f"{escape(label_text)}<br><span class='lion-color-sub'>{escape(text)}</span>" if label_text else escape(text)
+    return f"<span class='lion-swatch' style='background:{color};'></span>{display}"
 
 
 def format_currency_columns(df, columns):
@@ -651,13 +748,62 @@ def render_bambu_status_details(print_data):
     st.dataframe(pd.DataFrame([details]), hide_index=True, use_container_width=True)
 
 
+def render_color_table(rows, headers):
+    header_html = "".join([f"<div>{escape(header)}</div>" for header in headers])
+    row_html = [
+        f"<div class='lion-color-row lion-color-head'>{header_html}</div>"
+    ]
+    for row in rows:
+        row_html.append(
+            "<div class='lion-color-row'>"
+            + "".join([f"<div>{cell}</div>" for cell in row])
+            + "</div>"
+        )
+    st.markdown(f"<div class='lion-color-table'>{''.join(row_html)}</div>", unsafe_allow_html=True)
+
+
+def render_ams_color_table(ams_df):
+    rows = []
+    for _, row in ams_df.iterrows():
+        hex_value = row.get("Cor", "-")
+        rows.append(
+            [
+                escape(str(row.get("Slot", "-"))),
+                f"<span class='lion-color-main'>{escape(str(row.get('Material', '-')))}</span>",
+                color_swatch_html(hex_value),
+                escape(str(row.get("Restante (%)", "-"))),
+                escape(str(row.get("Status", "-"))),
+                escape(str(row.get("Bico min", "-"))),
+                escape(str(row.get("Bico max", "-"))),
+            ]
+        )
+    render_color_table(rows, ["Slot", "Material", "Cor", "Restante", "Status", "Bico min", "Bico max"])
+
+
+def render_filament_color_table(estoque_view):
+    rows = []
+    for _, row in estoque_view.iterrows():
+        rows.append(
+            [
+                f"<span class='lion-color-main'>{escape(str(row.get('material', '-')))}</span>",
+                color_swatch_html(row.get("cor_hex", ""), row.get("cor_nome", "")),
+                escape(str(row.get("marca", "-") or "-")),
+                f"{parse_float(row.get('peso_atual_g', 0)):.0f}g",
+                f"{parse_float(row.get('peso_inicial_g', 0)):.0f}g",
+                f"{parse_float(row.get('Restante (%)', 0)):.1f}%",
+                escape(str(row.get("status", "-") or "-")),
+            ]
+        )
+    render_color_table(rows, ["Material", "Cor", "Marca", "Atual", "Inicial", "Restante", "Status"])
+
+
 def render_ams_summary(print_data):
     st.write("### AMS e filamentos carregados")
     ams_df = parse_ams_trays(print_data)
     if ams_df.empty:
         st.info("Nenhum dado de AMS recebido agora.")
         return
-    st.dataframe(ams_df, hide_index=True, use_container_width=True)
+    render_ams_color_table(ams_df)
 
 
 def render_filament_inventory():
@@ -678,11 +824,7 @@ def render_filament_inventory():
             if parse_float(row["peso_inicial_g"]) > 0 else 0,
             axis=1,
         )
-        st.dataframe(
-            estoque_view[["material", "cor_nome", "cor_hex", "marca", "peso_atual_g", "peso_inicial_g", "Restante (%)", "status"]],
-            hide_index=True,
-            use_container_width=True,
-        )
+        render_filament_color_table(estoque_view)
     else:
         st.info("Nenhum rolo cadastrado ainda.")
     with st.form("form_filamento", clear_on_submit=True):
@@ -1058,6 +1200,23 @@ def pick_print_data(status_data):
     }
 
 
+def render_encomenda_status_overview(df_pedidos_filtrado):
+    if df_pedidos_filtrado.empty:
+        return
+    rows = []
+    for _, row in df_pedidos_filtrado.iterrows():
+        title = f"{row.get('Cliente', '')} | {row.get('Tipo de Projeto', '')}"
+        subtitle = f"{row.get('Data', '')} | {parse_float(row.get('Peso (g)', 0)):.0f}g | ID {row.get('id', '')}"
+        rows.append(
+            "<div class='lion-status-row'>"
+            f"<div><div class='lion-status-title'>{escape(title)}</div>"
+            f"<div class='lion-status-sub'>{escape(subtitle)}</div></div>"
+            f"<div>{status_badge_html(row.get('Status', ''))}</div>"
+            "</div>"
+        )
+    st.markdown(f"<div class='lion-status-board'>{''.join(rows)}</div>", unsafe_allow_html=True)
+
+
 def render_bambu_lab(df_pedidos):
     st.markdown("<h2 style='color: #ffcc00;'>🖨️ Bambu Lab</h2>", unsafe_allow_html=True)
     printers = get_bambu_printers()
@@ -1179,6 +1338,7 @@ def render_encomendas(df_pedidos):
         )
 
         if not df_pedidos_filtrado.empty:
+            render_encomenda_status_overview(df_pedidos_filtrado)
             df_pedidos_exibicao = df_pedidos_filtrado.copy()
             df_pedidos_exibicao["Custo (R$)"] = df_pedidos_exibicao["Custo (R$)"].apply(parse_float)
             df_pedidos_exibicao["Preço Venda (R$)"] = df_pedidos_exibicao["Preço Venda (R$)"].apply(parse_float)
