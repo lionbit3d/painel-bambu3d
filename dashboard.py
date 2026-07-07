@@ -51,6 +51,20 @@ VAREJO_COLUMNS = [
     "Preço Unit. Venda (R$)",
 ]
 
+IMPRESSOES_COLUMNS = [
+    "id",
+    "created_at",
+    "encomenda_id",
+    "printer_name",
+    "arquivo",
+    "status",
+    "progresso",
+    "tempo_restante_min",
+    "gcode_state",
+    "observacao",
+    "finalizada_em",
+]
+
 LISTA_PROJETOS = [
     "Suporte de Celular",
     "Letreiro de Quarto",
@@ -334,6 +348,177 @@ def delete_encomenda(encomenda_id):
     return response.status_code in [200, 204]
 
 
+def update_encomenda_status(encomenda_id, status):
+    response = requests.patch(
+        f"{SUPABASE_URL}/rest/v1/encomendas?id=eq.{encomenda_id}",
+        headers=HEADERS,
+        json={"status": status},
+    )
+    return response.status_code in [200, 204]
+
+
+def empty_impressoes():
+    return pd.DataFrame(columns=IMPRESSOES_COLUMNS)
+
+
+def load_bambu_print_jobs():
+    try:
+        response = requests.get(
+            f"{SUPABASE_URL}/rest/v1/impressoes_bambu?select=*&order=created_at.desc",
+            headers=HEADERS,
+        )
+        data = response.json() if response.status_code == 200 else []
+        return pd.DataFrame(data) if data else empty_impressoes()
+    except Exception:
+        return empty_impressoes()
+
+
+def current_print_file(print_data):
+    arquivo = str(print_data.get("arquivo") or "").strip()
+    if arquivo:
+        return arquivo
+    raw = print_data.get("raw", {})
+    if isinstance(raw, dict):
+        print_payload = raw.get("print", {})
+        for field in ["gcode_file", "subtask_name", "project_id", "task_id"]:
+            value = str(print_payload.get(field) or "").strip()
+            if value:
+                return value
+    return ""
+
+
+def save_bambu_print_job(encomenda_id, printer_name, print_data):
+    raw = print_data.get("raw", {})
+    print_payload = raw.get("print", {}) if isinstance(raw, dict) else {}
+    payload = {
+        "encomenda_id": int(encomenda_id),
+        "printer_name": printer_name,
+        "arquivo": current_print_file(print_data) or "Arquivo sem nome",
+        "status": print_data.get("estado", "Imprimindo"),
+        "progresso": parse_float(print_data.get("progresso", 0)),
+        "tempo_restante_min": int(parse_float(print_payload.get("mc_remaining_time", 0))),
+        "gcode_state": str(print_payload.get("gcode_state", "")),
+    }
+    response = requests.post(
+        f"{SUPABASE_URL}/rest/v1/impressoes_bambu",
+        headers=HEADERS,
+        json=payload,
+    )
+    return response.status_code in [200, 201], payload["arquivo"]
+
+
+def finish_bambu_print_job(job_id):
+    response = requests.patch(
+        f"{SUPABASE_URL}/rest/v1/impressoes_bambu?id=eq.{job_id}",
+        headers=HEADERS,
+        json={
+            "status": "Finalizada",
+            "finalizada_em": datetime.now(BRASILIA_TZ).isoformat(),
+        },
+    )
+    return response.status_code in [200, 204]
+
+
+def pedido_label(row):
+    return f"{row['Cliente']} | {row['Tipo de Projeto']} | {row['Data']} | {row['Status']} | ID {row['id']}"
+
+
+def get_order_summary(df_pedidos):
+    if df_pedidos.empty or "id" not in df_pedidos.columns:
+        return {}
+    return {
+        int(row["id"]): {
+            "Cliente": row.get("Cliente", ""),
+            "Tipo de Projeto": row.get("Tipo de Projeto", ""),
+            "Status do Pedido": row.get("Status", ""),
+        }
+        for _, row in df_pedidos.iterrows()
+    }
+
+
+def render_bambu_order_linking(printer, print_data, df_pedidos):
+    st.markdown("### Vinculo com encomendas")
+    jobs = load_bambu_print_jobs()
+    open_orders = (
+        df_pedidos[df_pedidos["Status"].isin(["Pendente", "Imprimindo"])]
+        if not df_pedidos.empty
+        else df_pedidos
+    )
+    arquivo_atual = current_print_file(print_data)
+
+    if not arquivo_atual:
+        st.info("Nenhum arquivo de impressao ativo para vincular agora.")
+    elif open_orders.empty:
+        st.info("Nenhuma encomenda pendente ou em impressao para vincular.")
+    else:
+        opcoes_pedidos = {pedido_label(row): row for _, row in open_orders.iterrows()}
+        pedido_escolhido = st.selectbox("Vincular arquivo atual a encomenda", list(opcoes_pedidos.keys()))
+        if st.button("Vincular impressao atual", use_container_width=True):
+            pedido = opcoes_pedidos[pedido_escolhido]
+            duplicado = False
+            if not jobs.empty:
+                duplicado = not jobs[
+                    (jobs["encomenda_id"].astype(int) == int(pedido["id"]))
+                    & (jobs["arquivo"].astype(str) == arquivo_atual)
+                    & (jobs["status"].astype(str) != "Finalizada")
+                ].empty
+            if duplicado:
+                st.warning("Essa impressao ja esta vinculada a essa encomenda.")
+            else:
+                ok, arquivo = save_bambu_print_job(pedido["id"], printer["name"], print_data)
+                if ok:
+                    if str(pedido["Status"]) == "Pendente":
+                        update_encomenda_status(pedido["id"], "Imprimindo")
+                    st.success(f"Impressao vinculada: {arquivo}")
+                    st.rerun()
+                else:
+                    st.error("Nao consegui salvar o vinculo da impressao.")
+
+    if jobs.empty:
+        return
+
+    order_summary = get_order_summary(df_pedidos)
+    jobs_view = jobs.copy()
+    jobs_view["Cliente"] = jobs_view["encomenda_id"].apply(lambda value: order_summary.get(int(value), {}).get("Cliente", ""))
+    jobs_view["Tipo de Projeto"] = jobs_view["encomenda_id"].apply(
+        lambda value: order_summary.get(int(value), {}).get("Tipo de Projeto", "")
+    )
+    jobs_view["Status do Pedido"] = jobs_view["encomenda_id"].apply(
+        lambda value: order_summary.get(int(value), {}).get("Status do Pedido", "")
+    )
+    jobs_view["Tempo restante"] = jobs_view["tempo_restante_min"].apply(format_remaining_time)
+
+    st.write("#### Impressoes vinculadas")
+    st.dataframe(
+        jobs_view[["Cliente", "Tipo de Projeto", "arquivo", "status", "progresso", "Tempo restante", "Status do Pedido"]],
+        hide_index=True,
+        use_container_width=True,
+    )
+
+    opcoes_jobs = {
+        f"{row['arquivo']} | {row['Cliente']} | {row['status']} | ID {row['id']}": row
+        for _, row in jobs_view.iterrows()
+    }
+    job_escolhido = st.selectbox("Gerenciar impressao vinculada", list(opcoes_jobs.keys()))
+    job = opcoes_jobs[job_escolhido]
+
+    col_finalizar, col_concluir = st.columns(2)
+    with col_finalizar:
+        if st.button("Marcar impressao como finalizada", use_container_width=True):
+            if finish_bambu_print_job(job["id"]):
+                st.success("Impressao finalizada.")
+                st.rerun()
+            else:
+                st.error("Nao consegui finalizar essa impressao.")
+    with col_concluir:
+        if st.button("Marcar pedido como concluido", use_container_width=True):
+            if update_encomenda_status(job["encomenda_id"], "Concluído"):
+                st.success("Pedido marcado como concluido.")
+                st.rerun()
+            else:
+                st.error("Nao consegui concluir esse pedido.")
+
+
 def get_secret_section(section_name):
     try:
         return dict(st.secrets.get(section_name, {}))
@@ -565,10 +750,11 @@ def pick_print_data(status_data):
         "mesa": print_data.get("bed_temper", "-"),
         "camara": print_data.get("chamber_temper", "-"),
         "tempo_restante": format_remaining_time(print_data.get("mc_remaining_time", 0)),
+        "raw": status_data,
     }
 
 
-def render_bambu_lab():
+def render_bambu_lab(df_pedidos):
     st.markdown("<h2 style='color: #ffcc00;'>🖨️ Bambu Lab</h2>", unsafe_allow_html=True)
     printers = get_bambu_printers()
     selected_name = st.selectbox("Impressora", [printer["name"] for printer in printers])
@@ -612,6 +798,7 @@ def render_bambu_lab():
                     hide_index=True,
                     use_container_width=True,
                 )
+                render_bambu_order_linking(printer, data, df_pedidos)
             else:
                 st.warning(status["message"])
 
@@ -853,4 +1040,4 @@ with aba_graficos:
     render_desempenho_lojas(df_varejo)
 
 with aba_bambu:
-    render_bambu_lab()
+    render_bambu_lab(df_pedidos)
