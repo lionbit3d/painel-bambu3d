@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import json
+import ipaddress
 import socket
 import ssl
 import time
@@ -64,6 +65,25 @@ OPCOES_MARGEM = {"250%": 2.5, "300%": 3.0, "350%": 3.5, "400%": 4.0}
 STATUS_OPTIONS = ["Pendente", "Imprimindo", "Concluído"]
 CONSULTORES = ["Isaac", "Renato"]
 BRASILIA_TZ = timezone(timedelta(hours=-3))
+
+
+def is_private_host(host):
+    try:
+        return ipaddress.ip_address(host).is_private
+    except ValueError:
+        return False
+
+
+def bambu_network_message(host, port, detail):
+    if is_private_host(host):
+        return (
+            f"Nao consegui acessar {host}:{port}. Esse IP e privado da sua rede local; "
+            "o Streamlit Cloud nao consegue chegar nele pela internet. "
+            "Para controlar pelo site publicado, precisa rodar o app na mesma rede da impressora "
+            "ou configurar uma VPN/tunel/gateway seguro. Detalhe: "
+            f"{detail}"
+        )
+    return f"Nao consegui acessar {host}:{port}. Detalhe: {detail}"
 
 design_premium = """
 <style>
@@ -336,14 +356,16 @@ def get_bambu_printers():
     return printers
 
 
-def test_tcp_connection(host, port, timeout=3):
+def test_tcp_connection(host, port, timeout=2):
     if not host:
         return False, "IP pendente"
     try:
         with socket.create_connection((host, int(port)), timeout=timeout):
             return True, "Porta acessivel"
+    except (TimeoutError, socket.timeout) as exc:
+        return False, bambu_network_message(host, port, str(exc) or "timed out")
     except OSError as exc:
-        return False, str(exc)
+        return False, bambu_network_message(host, port, str(exc))
 
 
 def mqtt_client_factory():
@@ -395,6 +417,18 @@ def read_bambu_status(printer, timeout=6):
     try:
         client.connect(printer["host"], printer["port"], keepalive=30)
         client.loop_start()
+        started = time.time()
+        while time.time() - started < min(2, timeout) and connection["rc"] is None:
+            time.sleep(0.1)
+
+        request_payload = {
+            "pushing": {
+                "sequence_id": str(int(time.time())),
+                "command": "pushall",
+            }
+        }
+        client.publish(f"device/{printer['serial']}/request", json.dumps(request_payload), qos=0)
+
         started = time.time()
         while time.time() - started < timeout and not messages:
             time.sleep(0.25)
@@ -474,7 +508,8 @@ def render_bambu_lab():
         st.write(f"Serial: {'configurado' if printer['serial'] else '-'}")
 
         if st.button("Atualizar impressora", use_container_width=True):
-            st.session_state["bambu_status"] = read_bambu_status(printer)
+            with st.spinner("Consultando impressora..."):
+                st.session_state["bambu_status"] = read_bambu_status(printer)
 
         status = st.session_state.get("bambu_status")
         if status:
@@ -504,10 +539,12 @@ def render_bambu_lab():
     with col_actions:
         st.write("### Controles")
         if st.button("Ligar luz", use_container_width=True):
-            ok, message = send_bambu_light_command(printer, "on")
+            with st.spinner("Enviando comando..."):
+                ok, message = send_bambu_light_command(printer, "on")
             st.success(message) if ok else st.error(message)
         if st.button("Desligar luz", use_container_width=True):
-            ok, message = send_bambu_light_command(printer, "off")
+            with st.spinner("Enviando comando..."):
+                ok, message = send_bambu_light_command(printer, "off")
             st.success(message) if ok else st.error(message)
 
 
