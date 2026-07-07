@@ -32,6 +32,7 @@ HEADERS = {
 PEDIDOS_COLUMNS = [
     "id",
     "Cliente",
+    "Nome do Item",
     "Consultor",
     "Data",
     "Tipo de Projeto",
@@ -369,6 +370,7 @@ def load_pedidos():
             df = df.rename(
                 columns={
                     "cliente": "Cliente",
+                    "nome_item": "Nome do Item",
                     "data_solicitacao": "Data",
                     "consultor": "Consultor",
                     "tipo_projeto": "Tipo de Projeto",
@@ -383,6 +385,7 @@ def load_pedidos():
                 if column not in df.columns:
                     df[column] = ""
             df["Consultor"] = df["Consultor"].fillna("").replace("", "Isaac")
+            df["Nome do Item"] = df["Nome do Item"].fillna("")
             df["Margem"] = df["Margem"].fillna("").replace("", "300%")
             df["Status"] = df["Status"].fillna("").replace("", "Pendente")
             df["Tipo de Projeto"] = df["Tipo de Projeto"].fillna("").replace("", LISTA_PROJETOS[0])
@@ -504,6 +507,7 @@ def sync_encomenda_changes(df_original, df_editado):
 
         payload = {
             "cliente": linha_editada["Cliente"],
+            "nome_item": linha_editada["Nome do Item"],
             "consultor": linha_editada["Consultor"],
             "tipo_projeto": linha_editada["Tipo de Projeto"],
             "peso_g": peso_editado,
@@ -515,6 +519,7 @@ def sync_encomenda_changes(df_original, df_editado):
         mudou = any(
             [
                 str(linha_editada["Cliente"]) != str(linha_original["Cliente"]),
+                str(linha_editada["Nome do Item"]) != str(linha_original["Nome do Item"]),
                 str(linha_editada["Consultor"]) != str(linha_original["Consultor"]),
                 str(linha_editada["Tipo de Projeto"]) != str(linha_original["Tipo de Projeto"]),
                 peso_mudou,
@@ -849,7 +854,8 @@ def render_filament_inventory():
 
 
 def pedido_label(row):
-    return f"{row['Cliente']} | {row['Tipo de Projeto']} | {row['Data']} | {row['Status']} | ID {row['id']}"
+    item = str(row.get("Nome do Item", "") or row.get("Tipo de Projeto", "")).strip()
+    return f"{row['Cliente']} | {item} | {row['Tipo de Projeto']} | {row['Data']} | {row['Status']} | ID {row['id']}"
 
 
 def get_order_summary(df_pedidos):
@@ -858,6 +864,7 @@ def get_order_summary(df_pedidos):
     return {
         int(row["id"]): {
             "Cliente": row.get("Cliente", ""),
+            "Nome do Item": row.get("Nome do Item", ""),
             "Tipo de Projeto": row.get("Tipo de Projeto", ""),
             "Status do Pedido": row.get("Status", ""),
         }
@@ -909,6 +916,9 @@ def render_bambu_order_linking(printer, print_data, df_pedidos):
     order_summary = get_order_summary(df_pedidos)
     jobs_view = jobs.copy()
     jobs_view["Cliente"] = jobs_view["encomenda_id"].apply(lambda value: order_summary.get(int(value), {}).get("Cliente", ""))
+    jobs_view["Nome do Item"] = jobs_view["encomenda_id"].apply(
+        lambda value: order_summary.get(int(value), {}).get("Nome do Item", "")
+    )
     jobs_view["Tipo de Projeto"] = jobs_view["encomenda_id"].apply(
         lambda value: order_summary.get(int(value), {}).get("Tipo de Projeto", "")
     )
@@ -919,13 +929,13 @@ def render_bambu_order_linking(printer, print_data, df_pedidos):
 
     st.write("#### Impressoes vinculadas")
     st.dataframe(
-        jobs_view[["Cliente", "Tipo de Projeto", "arquivo", "status", "progresso", "Tempo restante", "Status do Pedido"]],
+        jobs_view[["Cliente", "Nome do Item", "Tipo de Projeto", "arquivo", "status", "progresso", "Tempo restante", "Status do Pedido"]],
         hide_index=True,
         use_container_width=True,
     )
 
     opcoes_jobs = {
-        f"{row['arquivo']} | {row['Cliente']} | {row['status']} | ID {row['id']}": row
+        f"{row['arquivo']} | {row['Cliente']} | {row['Nome do Item']} | {row['status']} | ID {row['id']}": row
         for _, row in jobs_view.iterrows()
     }
     job_escolhido = st.selectbox("Gerenciar impressao vinculada", list(opcoes_jobs.keys()))
@@ -1206,7 +1216,8 @@ def render_encomenda_status_overview(df_pedidos_filtrado):
         return
     rows = []
     for _, row in df_pedidos_filtrado.iterrows():
-        title = f"{row.get('Cliente', '')} | {row.get('Tipo de Projeto', '')}"
+        item = str(row.get("Nome do Item", "") or row.get("Tipo de Projeto", "")).strip()
+        title = f"{row.get('Cliente', '')} | {item}"
         subtitle = f"{row.get('Data', '')} | {parse_float(row.get('Peso (g)', 0)):.0f}g | ID {row.get('id', '')}"
         rows.append(
             "<div class='lion-status-row'>"
@@ -1302,6 +1313,7 @@ def render_encomendas(df_pedidos):
         st.write("### ➕ Nova Encomenda")
         with st.form("form_encomenda", clear_on_submit=True):
             cliente = st.text_input("Nome do Cliente")
+            nome_item = st.text_input("Nome do Item", placeholder="Ex: Chaveiro do Cruzeiro")
             consultor = st.selectbox("Consultor", CONSULTORES)
             data_sel = st.date_input("Data de Solicitação", today_brasilia(), format="DD/MM/YYYY")
             tipo_projeto = st.selectbox("Tipo de Projeto", LISTA_PROJETOS)
@@ -1316,6 +1328,7 @@ def render_encomendas(df_pedidos):
 
                     payload = {
                         "cliente": cliente,
+                        "nome_item": nome_item,
                         "consultor": consultor,
                         "data_solicitacao": data_br,
                         "tipo_projeto": tipo_projeto,
@@ -1349,6 +1362,7 @@ def render_encomendas(df_pedidos):
                     "id": None,
                     "created_at": None,
                     "Cliente": st.column_config.TextColumn("Cliente", required=True),
+                    "Nome do Item": st.column_config.TextColumn("Nome do Item"),
                     "Consultor": st.column_config.SelectboxColumn(
                         "Consultor",
                         options=CONSULTORES,
@@ -1400,7 +1414,7 @@ def render_encomendas(df_pedidos):
                     sync_encomenda_changes(df_pedidos_filtrado, tabela_editavel)
             with col_excluir:
                 opcoes_exclusao = {
-                    f"{row['Cliente']} | {row['Tipo de Projeto']} | {row['Data']} | ID {row['id']}": row["id"]
+                    f"{row['Cliente']} | {row['Nome do Item']} | {row['Tipo de Projeto']} | {row['Data']} | ID {row['id']}": row["id"]
                     for _, row in df_pedidos_filtrado.iterrows()
                 }
                 encomenda_para_excluir = st.selectbox("Excluir encomenda", list(opcoes_exclusao.keys()))
