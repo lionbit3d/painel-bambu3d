@@ -141,21 +141,46 @@ design_premium = """
         color: #ffffff !important;
     }
 
-    div[data-testid="stSegmentedControl"] button {
+    div[data-testid="stSegmentedControl"] {
+        background-color: transparent !important;
+    }
+    div[data-testid="stSegmentedControl"] label,
+    div[data-testid="stSegmentedControl"] label > div,
+    div[data-testid="stSegmentedControl"] button,
+    div[data-testid="stSegmentedControl"] div[role="button"] {
         background-color: #1e1e1e !important;
         color: #ffffff !important;
         border: 1px solid #ffcc00 !important;
         font-weight: bold !important;
     }
-    div[data-testid="stSegmentedControl"] button * {
+    div[data-testid="stSegmentedControl"] label *,
+    div[data-testid="stSegmentedControl"] button *,
+    div[data-testid="stSegmentedControl"] div[role="button"] * {
         color: #ffffff !important;
+        fill: #ffffff !important;
     }
-    div[data-testid="stSegmentedControl"] button[aria-pressed="true"] {
+    div[data-testid="stSegmentedControl"] label:hover,
+    div[data-testid="stSegmentedControl"] button:hover,
+    div[data-testid="stSegmentedControl"] div[role="button"]:hover {
+        background-color: #2b2b2b !important;
+        color: #ffffff !important;
+        border-color: #ffcc00 !important;
+    }
+    div[data-testid="stSegmentedControl"] label:has(input:checked),
+    div[data-testid="stSegmentedControl"] label:has(input:checked) > div,
+    div[data-testid="stSegmentedControl"] button[aria-pressed="true"],
+    div[data-testid="stSegmentedControl"] div[aria-checked="true"],
+    div[data-testid="stSegmentedControl"] div[aria-selected="true"] {
         background-color: #ffcc00 !important;
         color: #000000 !important;
+        border-color: #ffcc00 !important;
     }
-    div[data-testid="stSegmentedControl"] button[aria-pressed="true"] * {
+    div[data-testid="stSegmentedControl"] label:has(input:checked) *,
+    div[data-testid="stSegmentedControl"] button[aria-pressed="true"] *,
+    div[data-testid="stSegmentedControl"] div[aria-checked="true"] *,
+    div[data-testid="stSegmentedControl"] div[aria-selected="true"] * {
         color: #000000 !important;
+        fill: #000000 !important;
     }
 </style>
 """
