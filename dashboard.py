@@ -1082,18 +1082,18 @@ render_global_metrics(df_pedidos, df_varejo)
 
 st.markdown("---")
 
-aba_producao, aba_varejo, aba_graficos, aba_bambu = st.tabs(
-    ["🏭 Fluxo de Encomendas", "🏪 Estoque e Comércio Varejo", "📊 Desempenho de Lojas", "🖨️ Bambu Lab"]
+opcao_painel = st.segmented_control(
+    "Área do painel",
+    ['🏭 Fluxo de Encomendas', '🏪 Estoque e Comércio Varejo', '📊 Desempenho de Lojas', '🖨️ Bambu Lab'],
+    default='🏭 Fluxo de Encomendas',
+    label_visibility="collapsed",
 )
 
-with aba_producao:
+if opcao_painel == '🏭 Fluxo de Encomendas':
     render_encomendas(df_pedidos)
-
-with aba_varejo:
+elif opcao_painel == '🏪 Estoque e Comércio Varejo':
     render_varejo(df_varejo)
-
-with aba_graficos:
+elif opcao_painel == '📊 Desempenho de Lojas':
     render_desempenho_lojas(df_varejo)
-
-with aba_bambu:
+elif opcao_painel == '🖨️ Bambu Lab':
     render_bambu_lab(df_pedidos)
