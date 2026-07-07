@@ -390,6 +390,7 @@ def load_pedidos():
             df["Margem"] = df["Margem"].fillna("").replace("", "300%")
             df["Status"] = df["Status"].fillna("").replace("", "Pendente")
             df["Tipo de Projeto"] = df["Tipo de Projeto"].fillna("").replace("", LISTA_PROJETOS[0])
+            df = df[[column for column in PEDIDOS_COLUMNS if column in df.columns]]
         return df
     except Exception:
         return empty_pedidos()
@@ -1314,8 +1315,8 @@ def render_encomendas(df_pedidos):
         st.write("### ➕ Nova Encomenda")
         with st.form("form_encomenda", clear_on_submit=True):
             cliente = st.text_input("Nome do Cliente")
-            nome_item = st.text_input("Encomenda", placeholder="Ex: Chaveiro do Cruzeiro")
             consultor = st.selectbox("Consultor", CONSULTORES)
+            nome_item = st.text_input("Encomenda", placeholder="Ex: Chaveiro do Cruzeiro")
             data_sel = st.date_input("Data de Solicitação", today_brasilia(), format="DD/MM/YYYY")
             tipo_projeto = st.selectbox("Tipo de Projeto", LISTA_PROJETOS)
             peso_gramas = st.number_input("Peso em Gramas (g)", min_value=0.0, step=1.0)
