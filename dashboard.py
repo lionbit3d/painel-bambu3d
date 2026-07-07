@@ -65,6 +65,16 @@ IMPRESSOES_COLUMNS = [
     "finalizada_em",
 ]
 
+FILAMENTOS_COLUMNS = [
+    "id", "created_at", "material", "cor_nome", "cor_hex", "marca",
+    "peso_inicial_g", "peso_atual_g", "status", "observacao",
+]
+
+CONSUMO_FILAMENTO_COLUMNS = [
+    "id", "created_at", "impressao_id", "encomenda_id", "filamento_id",
+    "peso_usado_g", "observacao",
+]
+
 LISTA_PROJETOS = [
     "Suporte de Celular",
     "Letreiro de Quarto",
@@ -463,14 +473,14 @@ def load_bambu_print_jobs():
 
 def current_print_file(print_data):
     arquivo = str(print_data.get("arquivo") or "").strip()
-    if arquivo:
+    if arquivo and arquivo != "-":
         return arquivo
     raw = print_data.get("raw", {})
     if isinstance(raw, dict):
         print_payload = raw.get("print", {})
         for field in ["gcode_file", "subtask_name", "project_id", "task_id"]:
             value = str(print_payload.get(field) or "").strip()
-            if value:
+            if value and value != "-":
                 return value
     return ""
 
@@ -505,6 +515,194 @@ def finish_bambu_print_job(job_id):
         },
     )
     return response.status_code in [200, 204]
+
+
+def empty_filamentos():
+    return pd.DataFrame(columns=FILAMENTOS_COLUMNS)
+
+
+def empty_consumo_filamento():
+    return pd.DataFrame(columns=CONSUMO_FILAMENTO_COLUMNS)
+
+
+def load_filamentos():
+    try:
+        response = requests.get(f"{SUPABASE_URL}/rest/v1/filamentos_estoque?select=*&order=created_at.desc", headers=HEADERS)
+        data = response.json() if response.status_code == 200 else []
+        return pd.DataFrame(data) if data else empty_filamentos()
+    except Exception:
+        return empty_filamentos()
+
+
+def load_consumo_filamento():
+    try:
+        response = requests.get(f"{SUPABASE_URL}/rest/v1/consumo_filamento?select=*&order=created_at.desc", headers=HEADERS)
+        data = response.json() if response.status_code == 200 else []
+        return pd.DataFrame(data) if data else empty_consumo_filamento()
+    except Exception:
+        return empty_consumo_filamento()
+
+
+def save_filamento(material, cor_nome, cor_hex, marca, peso_inicial_g, observacao):
+    peso = round(parse_float(peso_inicial_g), 2)
+    payload = {
+        "material": material or "PLA",
+        "cor_nome": cor_nome or "",
+        "cor_hex": cor_hex or "",
+        "marca": marca or "",
+        "peso_inicial_g": peso,
+        "peso_atual_g": peso,
+        "status": "Ativo",
+        "observacao": observacao or "",
+    }
+    response = requests.post(f"{SUPABASE_URL}/rest/v1/filamentos_estoque", headers=HEADERS, json=payload)
+    return response.status_code in [200, 201]
+
+
+def update_filamento_stock(filamento_id, novo_peso):
+    response = requests.patch(
+        f"{SUPABASE_URL}/rest/v1/filamentos_estoque?id=eq.{filamento_id}",
+        headers=HEADERS,
+        json={"peso_atual_g": round(max(parse_float(novo_peso), 0), 2)},
+    )
+    return response.status_code in [200, 204]
+
+
+def register_filament_consumption(job, filamento, peso_usado_g, observacao):
+    peso_usado = round(parse_float(peso_usado_g), 2)
+    if peso_usado <= 0:
+        return False, "Informe um peso maior que zero."
+    payload = {
+        "impressao_id": int(job["id"]),
+        "encomenda_id": int(job["encomenda_id"]),
+        "filamento_id": int(filamento["id"]),
+        "peso_usado_g": peso_usado,
+        "observacao": observacao or "",
+    }
+    response = requests.post(f"{SUPABASE_URL}/rest/v1/consumo_filamento", headers=HEADERS, json=payload)
+    if response.status_code not in [200, 201]:
+        return False, "Nao consegui registrar o consumo."
+    estoque_atual = parse_float(filamento.get("peso_atual_g", 0))
+    if not update_filamento_stock(filamento["id"], estoque_atual - peso_usado):
+        return False, "Consumo salvo, mas nao consegui atualizar o estoque."
+    return True, "Consumo registrado e estoque atualizado."
+
+
+def filament_label(row):
+    peso_atual = parse_float(row.get("peso_atual_g", 0))
+    cor = row.get("cor_nome") or row.get("cor_hex") or "Sem cor"
+    marca = row.get("marca") or "Sem marca"
+    return f"{row.get('material', 'PLA')} | {cor} | {marca} | {peso_atual:.0f}g | ID {row['id']}"
+
+
+def parse_ams_trays(print_data):
+    raw = print_data.get("raw", {})
+    print_payload = raw.get("print", {}) if isinstance(raw, dict) else {}
+    ams_payload = print_payload.get("ams", {}) if isinstance(print_payload, dict) else {}
+    ams_units = ams_payload.get("ams", []) if isinstance(ams_payload, dict) else []
+    rows = []
+    for ams in ams_units:
+        for tray in ams.get("tray", []):
+            rows.append({
+                "AMS": ams.get("id", "0"),
+                "Slot": tray.get("id", "-"),
+                "Material": tray.get("tray_type", "-"),
+                "Cor": tray.get("tray_color", "-"),
+                "Restante (%)": tray.get("remain", "-"),
+                "Status": tray.get("state", "-"),
+                "Bico min": tray.get("nozzle_temp_min", "-"),
+                "Bico max": tray.get("nozzle_temp_max", "-"),
+            })
+    return pd.DataFrame(rows)
+
+
+def render_bambu_alerts(print_data):
+    raw = print_data.get("raw", {})
+    print_payload = raw.get("print", {}) if isinstance(raw, dict) else {}
+    state = str(print_payload.get("gcode_state", "")).upper()
+    alerts = []
+    if state in ["PAUSE", "PAUSED"]:
+        alerts.append("Impressora pausada.")
+    if state == "FINISH":
+        alerts.append("Impressao finalizada. Confira se o pedido pode ser concluido.")
+    if print_payload.get("hms"):
+        alerts.append("A impressora reportou alerta HMS.")
+    filamentos = load_filamentos()
+    if not filamentos.empty:
+        baixos = filamentos[filamentos["peso_atual_g"].apply(parse_float) <= 100]
+        if not baixos.empty:
+            alerts.append(f"{len(baixos)} rolo(s) com 100g ou menos no estoque.")
+    for alert in alerts:
+        st.warning(alert)
+
+
+def render_bambu_status_details(print_data):
+    raw = print_data.get("raw", {})
+    print_payload = raw.get("print", {}) if isinstance(raw, dict) else {}
+    details = {
+        "Arquivo": current_print_file(print_data) or "-",
+        "Tipo": print_payload.get("print_type", "-"),
+        "Sinal Wi-Fi": print_payload.get("wifi_signal", "-"),
+        "Camada atual": print_payload.get("layer_num", "-"),
+        "Total de camadas": print_payload.get("total_layer_num", "-"),
+        "Erro": print_payload.get("print_error", 0),
+        "SD Card": "Sim" if print_payload.get("sdcard") else "Nao",
+    }
+    st.dataframe(pd.DataFrame([details]), hide_index=True, use_container_width=True)
+
+
+def render_ams_summary(print_data):
+    st.write("### AMS e filamentos carregados")
+    ams_df = parse_ams_trays(print_data)
+    if ams_df.empty:
+        st.info("Nenhum dado de AMS recebido agora.")
+        return
+    st.dataframe(ams_df, hide_index=True, use_container_width=True)
+
+
+def render_filament_inventory():
+    st.write("### Estoque de filamentos")
+    filamentos = load_filamentos()
+    consumo = load_consumo_filamento()
+    if not filamentos.empty:
+        total_estoque = filamentos["peso_atual_g"].apply(parse_float).sum()
+        rolos_baixos = len(filamentos[filamentos["peso_atual_g"].apply(parse_float) <= 100])
+        total_consumido = consumo["peso_usado_g"].apply(parse_float).sum() if not consumo.empty else 0
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Rolos cadastrados", len(filamentos))
+        c2.metric("Estoque total", f"{total_estoque:.0f}g")
+        c3.metric("Consumo registrado", f"{total_consumido:.0f}g", delta=f"{rolos_baixos} baixo(s)")
+        estoque_view = filamentos.copy()
+        estoque_view["Restante (%)"] = estoque_view.apply(
+            lambda row: round((parse_float(row["peso_atual_g"]) / parse_float(row["peso_inicial_g"])) * 100, 1)
+            if parse_float(row["peso_inicial_g"]) > 0 else 0,
+            axis=1,
+        )
+        st.dataframe(
+            estoque_view[["material", "cor_nome", "cor_hex", "marca", "peso_atual_g", "peso_inicial_g", "Restante (%)", "status"]],
+            hide_index=True,
+            use_container_width=True,
+        )
+    else:
+        st.info("Nenhum rolo cadastrado ainda.")
+    with st.form("form_filamento", clear_on_submit=True):
+        st.write("#### Cadastrar rolo")
+        col_a, col_b, col_c = st.columns(3)
+        with col_a:
+            material = st.text_input("Material", value="PLA")
+            cor_nome = st.text_input("Cor/nome")
+        with col_b:
+            cor_hex = st.text_input("Cor HEX", placeholder="D5B6A4FF")
+            marca = st.text_input("Marca")
+        with col_c:
+            peso_inicial = st.number_input("Peso inicial (g)", min_value=0.0, value=1000.0, step=50.0)
+            observacao = st.text_input("Observacao")
+        if st.form_submit_button("Cadastrar filamento"):
+            if save_filamento(material, cor_nome, cor_hex, marca, peso_inicial, observacao):
+                st.success("Filamento cadastrado.")
+                st.rerun()
+            else:
+                st.error("Nao consegui cadastrar o filamento.")
 
 
 def pedido_label(row):
@@ -590,6 +788,24 @@ def render_bambu_order_linking(printer, print_data, df_pedidos):
     job_escolhido = st.selectbox("Gerenciar impressao vinculada", list(opcoes_jobs.keys()))
     job = opcoes_jobs[job_escolhido]
 
+    filamentos = load_filamentos()
+    if filamentos.empty:
+        st.info("Cadastre um rolo de filamento para dar baixa no estoque desta impressao.")
+    else:
+        with st.form("form_consumo_filamento"):
+            st.write("#### Baixa de filamento desta impressao")
+            filamento_options = {filament_label(row): row for _, row in filamentos.iterrows()}
+            filamento_label_escolhido = st.selectbox("Filamento usado", list(filamento_options.keys()))
+            peso_usado = st.number_input("Peso usado nesta mesa (g)", min_value=0.0, step=1.0)
+            observacao_consumo = st.text_input("Observacao da baixa")
+            if st.form_submit_button("Dar baixa no estoque"):
+                ok, message = register_filament_consumption(job, filamento_options[filamento_label_escolhido], peso_usado, observacao_consumo)
+                if ok:
+                    st.success(message)
+                    st.rerun()
+                else:
+                    st.error(message)
+
     col_finalizar, col_concluir = st.columns(2)
     with col_finalizar:
         if st.button("Marcar impressao como finalizada", use_container_width=True):
@@ -600,7 +816,7 @@ def render_bambu_order_linking(printer, print_data, df_pedidos):
                 st.error("Nao consegui finalizar essa impressao.")
     with col_concluir:
         if st.button("Marcar pedido como concluido", use_container_width=True):
-            if update_encomenda_status(job["encomenda_id"], "Concluído"):
+            if update_encomenda_status(job["encomenda_id"], "Conclu?do"):
                 st.success("Pedido marcado como concluido.")
                 st.rerun()
             else:
@@ -886,6 +1102,10 @@ def render_bambu_lab(df_pedidos):
                     hide_index=True,
                     use_container_width=True,
                 )
+                render_bambu_alerts(data)
+                render_bambu_status_details(data)
+                render_ams_summary(data)
+                render_filament_inventory()
                 render_bambu_order_linking(printer, data, df_pedidos)
             else:
                 st.warning(status["message"])
