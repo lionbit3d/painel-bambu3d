@@ -1080,29 +1080,54 @@ def get_bambu_printers():
 
 
 
-def get_bambu_gateway_config():
-    config = get_secret_section("bambu_gateway")
+def normalize_printer_key(printer_name):
+    return re.sub(r"[^a-z0-9]+", "_", str(printer_name or "").strip().lower()).strip("_")
+
+
+def get_bambu_gateway_config(printer_name=None):
+    printer_key = normalize_printer_key(printer_name)
+    section_names = []
+    if printer_key:
+        section_names.append(f"bambu_gateway_{printer_key}")
+    section_names.append("bambu_gateway")
+
+    config = {}
+    section_name = ""
+    for candidate in section_names:
+        candidate_config = get_secret_section(candidate)
+        candidate_url = str(candidate_config.get("url", "")).rstrip("/")
+        candidate_token = str(candidate_config.get("token", ""))
+        if candidate_url and candidate_token:
+            config = candidate_config
+            section_name = candidate
+            break
+
     url = str(config.get("url", "")).rstrip("/")
     token = str(config.get("token", ""))
     return {
         "url": url,
         "token": token,
         "enabled": bool(url and token),
+        "section": section_name,
+        "shared": section_name == "bambu_gateway",
     }
 
 
 def gateway_request(path, method="GET", timeout=35, printer_name=None):
-    gateway = get_bambu_gateway_config()
+    gateway = get_bambu_gateway_config(printer_name)
     if not gateway["enabled"]:
         return None
 
     separator = "&" if "?" in path else "?"
-    printer_query = f"{separator}printer={quote(str(printer_name))}" if printer_name else ""
+    printer_query = f"{separator}printer={quote(str(printer_name))}" if printer_name and gateway["shared"] else ""
     try:
         response = requests.request(
             method,
             f"{gateway['url']}{path}{printer_query}",
-            headers={"X-Lionbit-Token": gateway["token"]},
+            headers={
+                "X-Lionbit-Token": gateway["token"],
+                "X-Gateway-Token": gateway["token"],
+            },
             timeout=timeout,
         )
         payload = response.json()
@@ -1481,14 +1506,18 @@ def render_bambu_lab(df_pedidos):
     selected_name = st.selectbox("Impressora", [printer["name"] for printer in printers])
     printer = next(printer for printer in printers if printer["name"] == selected_name)
 
-    gateway_config = get_bambu_gateway_config()
+    gateway_config = get_bambu_gateway_config(printer["name"])
 
     col_status, col_actions = st.columns([2, 1])
     with col_status:
         st.write(f"### {printer['name']}")
         st.write(f"IP: {printer['host'] or '-'}")
         st.write(f"Serial: {'configurado' if printer['serial'] else '-'}")
-        st.write(f"Conexao: {'Cloudflare Tunnel' if gateway_config['enabled'] else 'Direta'}")
+        if gateway_config["enabled"]:
+            gateway_label = "Cloudflare Tunnel proprio" if not gateway_config["shared"] else "Cloudflare Tunnel compartilhado"
+        else:
+            gateway_label = "Direta"
+        st.write(f"Conexao: {gateway_label}")
 
         if st.button("Atualizar impressora", use_container_width=True):
             with st.spinner("Consultando impressora..."):
