@@ -40,6 +40,7 @@ PEDIDOS_COLUMNS = [
     "Custo (R$)",
     "Preço Venda (R$)",
     "Margem",
+    "Prioridade",
     "Status",
 ]
 
@@ -91,6 +92,7 @@ LISTA_PROJETOS = [
 
 OPCOES_MARGEM = {"250%": 2.5, "300%": 3.0, "350%": 3.5, "400%": 4.0}
 STATUS_OPTIONS = ["Pendente", "Imprimindo", "Concluído"]
+PRIORIDADE_OPTIONS = ["Verde", "Amarelo", "Vermelho"]
 CONSULTORES = ["Isaac", "Renato"]
 BRASILIA_TZ = timezone(timedelta(hours=-3))
 STATUS_BADGE_COLORS = {
@@ -98,6 +100,11 @@ STATUS_BADGE_COLORS = {
     "Imprimindo": ("#9ca3af", "#111111"),
     "Concluído": ("#22c55e", "#06130a"),
     "Concluido": ("#22c55e", "#06130a"),
+}
+PRIORIDADE_BADGE_COLORS = {
+    "Verde": ("#22c55e", "#06130a"),
+    "Amarelo": ("#ffcc00", "#111111"),
+    "Vermelho": ("#ef4444", "#ffffff"),
 }
 
 
@@ -353,6 +360,15 @@ def status_badge_html(status):
     )
 
 
+def prioridade_badge_html(prioridade):
+    label = str(prioridade or "").strip() or "Verde"
+    background, foreground = PRIORIDADE_BADGE_COLORS.get(label, ("#6b7280", "#ffffff"))
+    return (
+        f"<span class='lion-badge' style='background:{background}; color:{foreground} !important;'>"
+        f"{escape(label)}</span>"
+    )
+
+
 def color_chip_html(hex_value, label=""):
     color = normalize_hex_color(hex_value)
     foreground = contrast_text_color(color)
@@ -435,6 +451,7 @@ def load_pedidos():
                     "custo_rs": "Custo (R$)",
                     "preco_venda_rs": "Preço Venda (R$)",
                     "margem": "Margem",
+                    "prioridade": "Prioridade",
                     "status": "Status",
                 }
             )
@@ -444,6 +461,7 @@ def load_pedidos():
             df["Consultor"] = df["Consultor"].fillna("").replace("", "Isaac")
             df["Encomenda"] = df["Encomenda"].fillna("")
             df["Margem"] = df["Margem"].fillna("").replace("", "300%")
+            df["Prioridade"] = df["Prioridade"].fillna("").replace("", "Verde")
             df["Status"] = df["Status"].fillna("").replace("", "Pendente")
             df["Tipo de Projeto"] = df["Tipo de Projeto"].fillna("").replace("", LISTA_PROJETOS[0])
             df = df[[column for column in PEDIDOS_COLUMNS if column in df.columns]]
@@ -572,6 +590,7 @@ def sync_encomenda_changes(df_original, df_editado):
             "custo_rs": round(custo_final, 2),
             "preco_venda_rs": round(preco_final, 2),
             "margem": margem_final,
+            "prioridade": linha_editada["Prioridade"],
             "status": linha_editada["Status"],
         }
         mudou = any(
@@ -584,6 +603,7 @@ def sync_encomenda_changes(df_original, df_editado):
                 custo_mudou,
                 preco_mudou,
                 margem_mudou,
+                str(linha_editada["Prioridade"]) != str(linha_original["Prioridade"]),
                 str(linha_editada["Status"]) != str(linha_original["Status"]),
             ]
         )
@@ -1281,7 +1301,7 @@ def render_encomenda_status_overview(df_pedidos_filtrado):
             "<div class='lion-status-row'>"
             f"<div><div class='lion-status-title'>{escape(title)}</div>"
             f"<div class='lion-status-sub'>{escape(subtitle)}</div></div>"
-            f"<div>{status_badge_html(row.get('Status', ''))}</div>"
+            f"<div>{prioridade_badge_html(row.get('Prioridade', ''))} {status_badge_html(row.get('Status', ''))}</div>"
             "</div>"
         )
     st.markdown(f"<div class='lion-status-board'>{''.join(rows)}</div>", unsafe_allow_html=True)
@@ -1352,6 +1372,7 @@ def render_order_detail_content(order_row):
     render_detail_metrics(
         [
             ("Status do pedido", str(order_row.get("Status", "-"))),
+            ("Prioridade", str(order_row.get("Prioridade", "-"))),
             ("Mesas vinculadas", len(jobs_order)),
             ("Mesas finalizadas", finalizadas),
             ("Filamento baixado", f"{total_consumido:.0f}g"),
@@ -1541,6 +1562,7 @@ def render_encomendas(df_pedidos):
             tipo_projeto = st.selectbox("Tipo de Projeto", LISTA_PROJETOS)
             peso_gramas = st.number_input("Peso em Gramas (g)", min_value=0.0, step=1.0)
             margem_texto = st.selectbox("Margem de Venda", list(OPCOES_MARGEM.keys()), index=1)
+            prioridade = st.selectbox("Prioridade", PRIORIDADE_OPTIONS)
             status_inicial = st.selectbox("Status", STATUS_OPTIONS)
 
             if st.form_submit_button("Salvar Encomenda"):
@@ -1558,6 +1580,7 @@ def render_encomendas(df_pedidos):
                         "custo_rs": custo_calc,
                         "preco_venda_rs": preco_calc,
                         "margem": margem_texto,
+                        "prioridade": prioridade,
                         "status": status_inicial,
                     }
                     requests.post(f"{SUPABASE_URL}/rest/v1/encomendas", headers=HEADERS, json=payload)
@@ -1617,6 +1640,11 @@ def render_encomendas(df_pedidos):
                     ),
                     "Margem": st.column_config.TextColumn(
                         "Margem",
+                        required=True,
+                    ),
+                    "Prioridade": st.column_config.SelectboxColumn(
+                        "Prioridade",
+                        options=PRIORIDADE_OPTIONS,
                         required=True,
                     ),
                     "Status": st.column_config.SelectboxColumn(
