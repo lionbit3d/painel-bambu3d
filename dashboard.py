@@ -9,6 +9,7 @@ import time
 import warnings
 from html import escape
 from datetime import datetime, timedelta, timezone
+from urllib.parse import quote
 import requests
 
 try:
@@ -1090,15 +1091,17 @@ def get_bambu_gateway_config():
     }
 
 
-def gateway_request(path, method="GET", timeout=35):
+def gateway_request(path, method="GET", timeout=35, printer_name=None):
     gateway = get_bambu_gateway_config()
     if not gateway["enabled"]:
         return None
 
+    separator = "&" if "?" in path else "?"
+    printer_query = f"{separator}printer={quote(str(printer_name))}" if printer_name else ""
     try:
         response = requests.request(
             method,
-            f"{gateway['url']}{path}",
+            f"{gateway['url']}{path}{printer_query}",
             headers={"X-Lionbit-Token": gateway["token"]},
             timeout=timeout,
         )
@@ -1114,12 +1117,12 @@ def gateway_request(path, method="GET", timeout=35):
     return payload
 
 
-def read_bambu_status_via_gateway():
-    return gateway_request("/status", timeout=45)
+def read_bambu_status_via_gateway(printer_name):
+    return gateway_request("/status", timeout=45, printer_name=printer_name)
 
 
-def send_bambu_light_command_via_gateway(mode):
-    result = gateway_request(f"/light/{mode}", method="POST", timeout=30)
+def send_bambu_light_command_via_gateway(mode, printer_name):
+    result = gateway_request(f"/light/{mode}", method="POST", timeout=30, printer_name=printer_name)
     if not result:
         return False, "Gateway nao configurado"
     return bool(result.get("ok")), result.get("message", "Sem resposta do gateway")
@@ -1490,7 +1493,7 @@ def render_bambu_lab(df_pedidos):
         if st.button("Atualizar impressora", use_container_width=True):
             with st.spinner("Consultando impressora..."):
                 if gateway_config["enabled"]:
-                    st.session_state["bambu_status"] = read_bambu_status_via_gateway()
+                    st.session_state["bambu_status"] = read_bambu_status_via_gateway(printer["name"])
                 else:
                     st.session_state["bambu_status"] = read_bambu_status(printer)
 
@@ -1529,7 +1532,7 @@ def render_bambu_lab(df_pedidos):
         if st.button("Ligar luz", use_container_width=True):
             with st.spinner("Enviando comando..."):
                 if gateway_config["enabled"]:
-                    ok, message = send_bambu_light_command_via_gateway("on")
+                    ok, message = send_bambu_light_command_via_gateway("on", printer["name"])
                 else:
                     ok, message = send_bambu_light_command(printer, "on")
             if ok:
@@ -1539,7 +1542,7 @@ def render_bambu_lab(df_pedidos):
         if st.button("Desligar luz", use_container_width=True):
             with st.spinner("Enviando comando..."):
                 if gateway_config["enabled"]:
-                    ok, message = send_bambu_light_command_via_gateway("off")
+                    ok, message = send_bambu_light_command_via_gateway("off", printer["name"])
                 else:
                     ok, message = send_bambu_light_command(printer, "off")
             if ok:
