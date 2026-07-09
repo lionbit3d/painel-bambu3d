@@ -36,6 +36,7 @@ PEDIDOS_COLUMNS = [
     "Encomenda",
     "Consultor",
     "Data",
+    "Data de Pagamento",
     "Tipo de Projeto",
     "Peso (g)",
     "Custo (R$)",
@@ -470,6 +471,7 @@ def load_pedidos():
                     "cliente": "Cliente",
                     "nome_item": "Encomenda",
                     "data_solicitacao": "Data",
+                    "data_pagamento": "Data de Pagamento",
                     "consultor": "Consultor",
                     "tipo_projeto": "Tipo de Projeto",
                     "peso_g": "Peso (g)",
@@ -591,6 +593,9 @@ def sync_encomenda_changes(df_original, df_editado):
         custo_mudou = round(custo_editado, 2) != round(custo_original, 2)
         preco_mudou = round(preco_editado, 2) != round(preco_original, 2)
         margem_mudou = str(linha_editada["Margem"]) != str(linha_original["Margem"])
+        pagamento_mudou = str(linha_editada.get("Data de Pagamento", "")) != str(
+            linha_original.get("Data de Pagamento", "")
+        )
 
         if custo_mudou:
             custo_final = custo_editado
@@ -599,17 +604,14 @@ def sync_encomenda_changes(df_original, df_editado):
         else:
             custo_final = custo_original
 
-        if preco_mudou:
-            preco_final = preco_editado
-            margem_final = format_margin_from_values(custo_final, preco_final)
-        else:
-            margem_final = linha_editada["Margem"]
-            preco_final = custo_final * margin_multiplier_from_text(margem_final)
+        preco_final = preco_editado
+        margem_final = format_margin_from_values(custo_final, preco_final)
 
         payload = {
             "cliente": linha_editada["Cliente"],
             "nome_item": linha_editada["Encomenda"],
             "consultor": linha_editada["Consultor"],
+            "data_pagamento": str(linha_editada.get("Data de Pagamento", "") or "").strip(),
             "tipo_projeto": linha_editada["Tipo de Projeto"],
             "peso_g": peso_editado,
             "custo_rs": round(custo_final, 2),
@@ -628,6 +630,7 @@ def sync_encomenda_changes(df_original, df_editado):
                 custo_mudou,
                 preco_mudou,
                 margem_mudou,
+                pagamento_mudou,
                 normalize_prioridade(linha_editada["Prioridade"]) != normalize_prioridade(linha_original["Prioridade"]),
                 str(linha_editada["Status"]) != str(linha_original["Status"]),
             ]
@@ -1615,6 +1618,7 @@ def render_encomendas(df_pedidos):
             consultor = st.selectbox("Consultor", CONSULTORES)
             nome_item = st.text_input("Encomenda", placeholder="Ex: Chaveiro do Cruzeiro")
             data_sel = st.date_input("Data de Solicitação", today_brasilia(), format="DD/MM/YYYY")
+            data_pagamento = st.text_input("Data de Pagamento", placeholder="Ex: 15/07/2026 ou PG")
             tipo_projeto = st.selectbox("Tipo de Projeto", LISTA_PROJETOS)
             peso_gramas = st.number_input("Peso em Gramas (g)", min_value=0.0, step=1.0)
             margem_texto = st.selectbox("Margem de Venda", list(OPCOES_MARGEM.keys()), index=1)
@@ -1631,6 +1635,7 @@ def render_encomendas(df_pedidos):
                         "nome_item": nome_item,
                         "consultor": consultor,
                         "data_solicitacao": data_br,
+                        "data_pagamento": data_pagamento.strip(),
                         "tipo_projeto": tipo_projeto,
                         "peso_g": peso_gramas,
                         "custo_rs": custo_calc,
@@ -1668,6 +1673,10 @@ def render_encomendas(df_pedidos):
                         "Consultor",
                         options=CONSULTORES,
                         required=True,
+                    ),
+                    "Data de Pagamento": st.column_config.TextColumn(
+                        "Data de Pagamento",
+                        help="Preencha uma data ou PG.",
                     ),
                     "Tipo de Projeto": st.column_config.SelectboxColumn(
                         "Tipo de Projeto",
