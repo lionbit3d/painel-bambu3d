@@ -1775,11 +1775,37 @@ def render_encomendas(df_pedidos):
                     st.warning("Preencha o cliente, um peso maior que zero e o valor do produto.")
 
     with col_tab:
-        st.write("### 🔍 Cronograma Prontuário")
+        col_titulo_prontuario, col_busca_prontuario = st.columns([2, 1])
+        with col_titulo_prontuario:
+            st.write("### 🔍 Cronograma Prontuário")
+        with col_busca_prontuario:
+            termo_busca = st.text_input("Buscar", placeholder="Cliente, encomenda, projeto...")
         filtro_status = st.multiselect("Filtrar por Status:", STATUS_OPTIONS, default=["Pendente", "Imprimindo"])
         df_pedidos_filtrado = (
             df_pedidos[df_pedidos["Status"].isin(filtro_status)] if not df_pedidos.empty else df_pedidos
         )
+        if termo_busca.strip() and not df_pedidos_filtrado.empty:
+            colunas_busca = [
+                "Cliente",
+                "Encomenda",
+                "Consultor",
+                "Data",
+                "Data de Pagamento",
+                "Forma de Pagamento",
+                "Tipo de Projeto",
+                "Status",
+                "Prioridade",
+            ]
+            termo_normalizado = termo_busca.strip()
+            mascara_busca = pd.Series(False, index=df_pedidos_filtrado.index)
+            for coluna in colunas_busca:
+                if coluna in df_pedidos_filtrado.columns:
+                    mascara_busca |= df_pedidos_filtrado[coluna].astype(str).str.contains(
+                        termo_normalizado,
+                        case=False,
+                        na=False,
+                    )
+            df_pedidos_filtrado = df_pedidos_filtrado[mascara_busca]
 
         if not df_pedidos_filtrado.empty:
             render_encomenda_status_overview(df_pedidos_filtrado)
