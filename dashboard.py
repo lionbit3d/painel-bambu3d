@@ -37,6 +37,7 @@ PEDIDOS_COLUMNS = [
     "Consultor",
     "Data",
     "Data de Pagamento",
+    "Forma de Pagamento",
     "Tipo de Projeto",
     "Peso (g)",
     "Custo (R$)",
@@ -94,6 +95,7 @@ LISTA_PROJETOS = [
 
 OPCOES_MARGEM = {"250%": 2.5, "300%": 3.0, "350%": 3.5, "400%": 4.0}
 STATUS_OPTIONS = ["Pendente", "Imprimindo", "Concluído"]
+FORMA_PAGAMENTO_OPTIONS = ["Pix", "Crédito", "Débito", "Dinheiro"]
 PRIORIDADE_OPTIONS = ["🟩", "🟨", "🟥"]
 PRIORIDADE_LABELS = {
     "🟩": "Verde",
@@ -472,6 +474,7 @@ def load_pedidos():
                     "nome_item": "Encomenda",
                     "data_solicitacao": "Data",
                     "data_pagamento": "Data de Pagamento",
+                    "forma_pagamento": "Forma de Pagamento",
                     "consultor": "Consultor",
                     "tipo_projeto": "Tipo de Projeto",
                     "peso_g": "Peso (g)",
@@ -487,6 +490,7 @@ def load_pedidos():
                     df[column] = ""
             df["Consultor"] = df["Consultor"].fillna("").replace("", "Isaac")
             df["Encomenda"] = df["Encomenda"].fillna("")
+            df["Forma de Pagamento"] = df["Forma de Pagamento"].fillna("").replace("", FORMA_PAGAMENTO_OPTIONS[0])
             df["Margem"] = df["Margem"].fillna("").replace("", "300%")
             df["Prioridade"] = df["Prioridade"].fillna("").replace("", "Verde").apply(prioridade_display_value)
             df["Status"] = df["Status"].fillna("").replace("", "Pendente")
@@ -596,6 +600,9 @@ def sync_encomenda_changes(df_original, df_editado):
         pagamento_mudou = str(linha_editada.get("Data de Pagamento", "")) != str(
             linha_original.get("Data de Pagamento", "")
         )
+        forma_pagamento_mudou = str(linha_editada.get("Forma de Pagamento", "")) != str(
+            linha_original.get("Forma de Pagamento", "")
+        )
 
         if custo_mudou:
             custo_final = custo_editado
@@ -612,6 +619,7 @@ def sync_encomenda_changes(df_original, df_editado):
             "nome_item": linha_editada["Encomenda"],
             "consultor": linha_editada["Consultor"],
             "data_pagamento": str(linha_editada.get("Data de Pagamento", "") or "").strip(),
+            "forma_pagamento": linha_editada.get("Forma de Pagamento", FORMA_PAGAMENTO_OPTIONS[0]),
             "tipo_projeto": linha_editada["Tipo de Projeto"],
             "peso_g": peso_editado,
             "custo_rs": round(custo_final, 2),
@@ -631,6 +639,7 @@ def sync_encomenda_changes(df_original, df_editado):
                 preco_mudou,
                 margem_mudou,
                 pagamento_mudou,
+                forma_pagamento_mudou,
                 normalize_prioridade(linha_editada["Prioridade"]) != normalize_prioridade(linha_original["Prioridade"]),
                 str(linha_editada["Status"]) != str(linha_original["Status"]),
             ]
@@ -1619,6 +1628,7 @@ def render_encomendas(df_pedidos):
             nome_item = st.text_input("Encomenda", placeholder="Ex: Chaveiro do Cruzeiro")
             data_sel = st.date_input("Data de Solicitação", today_brasilia(), format="DD/MM/YYYY")
             data_pagamento = st.text_input("Data de Pagamento", placeholder="Ex: 15/07/2026 ou PG")
+            forma_pagamento = st.selectbox("Forma de Pagamento", FORMA_PAGAMENTO_OPTIONS)
             tipo_projeto = st.selectbox("Tipo de Projeto", LISTA_PROJETOS)
             peso_gramas = st.number_input("Peso em Gramas (g)", min_value=0.0, step=1.0)
             margem_texto = st.selectbox("Margem de Venda", list(OPCOES_MARGEM.keys()), index=1)
@@ -1636,6 +1646,7 @@ def render_encomendas(df_pedidos):
                         "consultor": consultor,
                         "data_solicitacao": data_br,
                         "data_pagamento": data_pagamento.strip(),
+                        "forma_pagamento": forma_pagamento,
                         "tipo_projeto": tipo_projeto,
                         "peso_g": peso_gramas,
                         "custo_rs": custo_calc,
@@ -1677,6 +1688,11 @@ def render_encomendas(df_pedidos):
                     "Data de Pagamento": st.column_config.TextColumn(
                         "Data de Pagamento",
                         help="Preencha uma data ou PG.",
+                    ),
+                    "Forma de Pagamento": st.column_config.SelectboxColumn(
+                        "Forma de Pagamento",
+                        options=FORMA_PAGAMENTO_OPTIONS,
+                        required=True,
                     ),
                     "Tipo de Projeto": st.column_config.SelectboxColumn(
                         "Tipo de Projeto",
