@@ -1646,16 +1646,17 @@ def render_encomendas(df_pedidos):
             forma_pagamento = st.selectbox("Forma de Pagamento", FORMA_PAGAMENTO_OPTIONS)
             tipo_projeto = st.selectbox("Tipo de Projeto", LISTA_PROJETOS)
             peso_gramas = st.number_input("Peso por Unidade (g)", min_value=0.0, step=1.0)
-            margem_texto = st.selectbox("Margem de Venda", list(OPCOES_MARGEM.keys()), index=1)
+            valor_produto = st.number_input("Valor do Produto (R$)", min_value=0.0, step=1.0, format="%.2f")
             prioridade = st.selectbox("Prioridade", PRIORIDADE_OPTIONS)
             status_inicial = st.selectbox("Status", STATUS_OPTIONS)
 
             if st.form_submit_button("Salvar Encomenda"):
-                if cliente and peso_gramas > 0:
-                    custo_calc, preco_calc = calculate_order_values(peso_gramas, margem_texto)
-                    custo_calc = custo_calc * int(quantidade)
-                    preco_calc = preco_calc * int(quantidade)
+                if cliente and peso_gramas > 0 and valor_produto > 0:
+                    custo_unitario = round(peso_gramas * 0.15, 2)
+                    custo_calc = custo_unitario * int(quantidade)
+                    preco_calc = valor_produto * int(quantidade)
                     peso_total = peso_gramas * int(quantidade)
+                    margem_texto = format_margin_from_values(custo_calc, preco_calc)
                     data_br = data_sel.strftime("%d/%m/%Y")
 
                     payload = {
@@ -1678,7 +1679,7 @@ def render_encomendas(df_pedidos):
                     st.success("Salvo no banco de dados!")
                     st.rerun()
                 else:
-                    st.warning("Preencha o cliente e um peso maior que zero.")
+                    st.warning("Preencha o cliente, um peso maior que zero e o valor do produto.")
 
     with col_tab:
         st.write("### 🔍 Cronograma Prontuário")
