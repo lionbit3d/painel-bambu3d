@@ -92,6 +92,7 @@ LISTA_PROJETOS = [
     "Utilitário",
     "Utensílio Doméstico",
     "Peça Técnica",
+    "Pet",
 ]
 
 OPCOES_MARGEM = {"250%": 2.5, "300%": 3.0, "350%": 3.5, "400%": 4.0}
