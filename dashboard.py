@@ -591,19 +591,25 @@ def load_varejo():
 
 
 def render_header():
-    col_logo, col_titulo = st.columns(2)
+    col_logo, col_titulo = st.columns([0.08, 0.92])
     with col_logo:
         try:
-            st.image("logo.png", width=120)
+            st.image("logo.png", width=58)
         except Exception:
             st.write("🦁 [Logo]")
     with col_titulo:
         st.markdown(
-            "<h1 style='color: #ffcc00; margin-bottom: 0; font-family: sans-serif; font-size: 42px;'>LionBit 3D Studio</h1>",
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            "<h3 style='color: #ffffff; margin-top: 0; font-family: sans-serif; font-weight: 300;'>Painel Integrado de Manufatura e Gestão de Vendas</h3>",
+            """
+            <div style="display:flex; align-items:center; gap:14px; min-height:58px; white-space:nowrap;">
+                <span style="color:#ffcc00; font-family:sans-serif; font-size:30px; font-weight:800;">
+                    LionBit 3D Studio
+                </span>
+                <span style="width:1px; height:32px; background:#ffcc00; opacity:0.85;"></span>
+                <span style="color:#ffffff; font-family:sans-serif; font-size:20px; font-weight:300;">
+                    Painel Integrado de Manufatura e Gestão de Vendas
+                </span>
+            </div>
+            """,
             unsafe_allow_html=True,
         )
 
