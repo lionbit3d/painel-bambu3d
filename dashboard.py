@@ -1638,25 +1638,47 @@ def render_encomendas(df_pedidos):
     with col_form:
         st.write("### ➕ Nova Encomenda")
         with st.form("form_encomenda", clear_on_submit=True):
-            cliente = st.text_input("Nome do Cliente")
-            consultor = st.selectbox("Consultor", CONSULTORES)
-            quantidade = st.number_input("Quantidade", min_value=1, step=1, value=1)
-            nome_item = st.text_input("Encomenda", placeholder="Ex: Chaveiro do Cruzeiro")
-            data_sel = st.date_input("Data de Solicitação", today_brasilia(), format="DD/MM/YYYY")
-            data_pagamento = st.text_input("Data de Pagamento", placeholder="Ex: 15/07/2026 ou PG")
-            forma_pagamento = st.selectbox("Forma de Pagamento", FORMA_PAGAMENTO_OPTIONS)
-            tipo_projeto = st.selectbox("Tipo de Projeto", LISTA_PROJETOS)
-            peso_gramas = st.number_input("Peso por Unidade (g)", min_value=0.0, step=1.0)
-            valor_produto = st.number_input("Valor do Produto (R$)", min_value=0.0, step=1.0, format="%.2f")
-            outros_custos = st.number_input(
-                "Outros custos (R$)",
-                min_value=0.0,
-                step=1.0,
-                format="%.2f",
-                help="Ex: coleira, pingente, outros materiais.",
-            )
-            prioridade = st.selectbox("Prioridade", PRIORIDADE_OPTIONS)
-            status_inicial = st.selectbox("Status", STATUS_OPTIONS)
+            col_cliente, col_item = st.columns([1.05, 1])
+            with col_cliente:
+                cliente = st.text_input("Nome do Cliente")
+            with col_item:
+                nome_item = st.text_input("Encomenda", placeholder="Ex: Chaveiro do Cruzeiro")
+
+            col_consultor, col_quantidade, col_projeto = st.columns([0.9, 0.55, 1])
+            with col_consultor:
+                consultor = st.selectbox("Consultor", CONSULTORES)
+            with col_quantidade:
+                quantidade = st.number_input("Qtde", min_value=1, step=1, value=1)
+            with col_projeto:
+                tipo_projeto = st.selectbox("Tipo de Projeto", LISTA_PROJETOS)
+
+            col_data, col_data_pagamento, col_forma = st.columns([0.9, 1, 0.9])
+            with col_data:
+                data_sel = st.date_input("Data de Solicitação", today_brasilia(), format="DD/MM/YYYY")
+            with col_data_pagamento:
+                data_pagamento = st.text_input("Data de Pagamento", placeholder="Ex: 15/07/2026 ou PG")
+            with col_forma:
+                forma_pagamento = st.selectbox("Forma de Pagamento", FORMA_PAGAMENTO_OPTIONS)
+
+            col_peso, col_valor, col_outros = st.columns(3)
+            with col_peso:
+                peso_gramas = st.number_input("Peso/Un. (g)", min_value=0.0, step=1.0)
+            with col_valor:
+                valor_produto = st.number_input("Valor Produto (R$)", min_value=0.0, step=1.0, format="%.2f")
+            with col_outros:
+                outros_custos = st.number_input(
+                    "Outros custos (R$)",
+                    min_value=0.0,
+                    step=1.0,
+                    format="%.2f",
+                    help="Ex: coleira, pingente, outros materiais.",
+                )
+
+            col_prioridade, col_status = st.columns(2)
+            with col_prioridade:
+                prioridade = st.selectbox("Prioridade", PRIORIDADE_OPTIONS)
+            with col_status:
+                status_inicial = st.selectbox("Status", STATUS_OPTIONS)
 
             if st.form_submit_button("Salvar Encomenda"):
                 if cliente and peso_gramas > 0 and valor_produto > 0:
