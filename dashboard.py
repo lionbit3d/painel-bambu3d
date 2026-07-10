@@ -1808,7 +1808,6 @@ def render_encomendas(df_pedidos):
             df_pedidos_filtrado = df_pedidos_filtrado[mascara_busca]
 
         if not df_pedidos_filtrado.empty:
-            render_encomenda_status_overview(df_pedidos_filtrado)
             df_pedidos_exibicao = df_pedidos_filtrado.copy()
             df_pedidos_exibicao["Custo (R$)"] = df_pedidos_exibicao["Custo (R$)"].apply(parse_float)
             df_pedidos_exibicao["Preço Venda (R$)"] = df_pedidos_exibicao["Preço Venda (R$)"].apply(parse_float)
