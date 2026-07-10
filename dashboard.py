@@ -1648,13 +1648,20 @@ def render_encomendas(df_pedidos):
             tipo_projeto = st.selectbox("Tipo de Projeto", LISTA_PROJETOS)
             peso_gramas = st.number_input("Peso por Unidade (g)", min_value=0.0, step=1.0)
             valor_produto = st.number_input("Valor do Produto (R$)", min_value=0.0, step=1.0, format="%.2f")
+            outros_custos = st.number_input(
+                "Outros custos (R$)",
+                min_value=0.0,
+                step=1.0,
+                format="%.2f",
+                help="Ex: coleira, pingente, outros materiais.",
+            )
             prioridade = st.selectbox("Prioridade", PRIORIDADE_OPTIONS)
             status_inicial = st.selectbox("Status", STATUS_OPTIONS)
 
             if st.form_submit_button("Salvar Encomenda"):
                 if cliente and peso_gramas > 0 and valor_produto > 0:
                     custo_unitario = round(peso_gramas * 0.15, 2)
-                    custo_calc = custo_unitario * int(quantidade)
+                    custo_calc = (custo_unitario * int(quantidade)) + outros_custos
                     preco_calc = valor_produto * int(quantidade)
                     peso_total = peso_gramas * int(quantidade)
                     margem_texto = format_margin_from_values(custo_calc, preco_calc)
