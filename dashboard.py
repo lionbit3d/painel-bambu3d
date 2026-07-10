@@ -1600,7 +1600,7 @@ def render_order_details_launcher(df_pedidos_filtrado):
     }
     col_select, col_button = st.columns([2, 1])
     with col_select:
-        detalhe_escolhido = st.selectbox("Abrir detalhes da encomenda", list(opcoes_detalhes.keys()))
+        detalhe_escolhido = st.selectbox("Encomenda para abrir detalhes", list(opcoes_detalhes.keys()))
     with col_button:
         st.write("")
         if st.button("Abrir detalhes", use_container_width=True):
@@ -1871,17 +1871,20 @@ def render_encomendas(df_pedidos):
                 hide_index=True,
                 use_container_width=True,
             )
+            if st.button("Salvar alterações do prontuário", use_container_width=True):
+                sync_encomenda_changes(df_pedidos_filtrado, tabela_editavel)
+
             render_order_details_launcher(df_pedidos_filtrado)
-            col_salvar, col_excluir = st.columns(2)
-            with col_salvar:
-                if st.button("Salvar alterações do prontuário", use_container_width=True):
-                    sync_encomenda_changes(df_pedidos_filtrado, tabela_editavel)
-            with col_excluir:
-                opcoes_exclusao = {
-                    f"{row['Cliente']} | {row['Encomenda']} | {row['Tipo de Projeto']} | {row['Data']} | ID {row['id']}": row["id"]
-                    for _, row in df_pedidos_filtrado.iterrows()
-                }
-                encomenda_para_excluir = st.selectbox("Excluir encomenda", list(opcoes_exclusao.keys()))
+
+            opcoes_exclusao = {
+                f"{row['Cliente']} | {row['Encomenda']} | {row['Tipo de Projeto']} | {row['Data']} | ID {row['id']}": row["id"]
+                for _, row in df_pedidos_filtrado.iterrows()
+            }
+            col_excluir_select, col_excluir_button = st.columns([2, 1])
+            with col_excluir_select:
+                encomenda_para_excluir = st.selectbox("Encomenda para excluir", list(opcoes_exclusao.keys()))
+            with col_excluir_button:
+                st.write("")
                 if st.button("Excluir encomenda selecionada", use_container_width=True):
                     if delete_encomenda(opcoes_exclusao[encomenda_para_excluir]):
                         st.success("Encomenda excluída do banco de dados!")
