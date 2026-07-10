@@ -33,6 +33,7 @@ HEADERS = {
 PEDIDOS_COLUMNS = [
     "id",
     "Cliente",
+    "Quantidade",
     "Encomenda",
     "Consultor",
     "Data",
@@ -471,6 +472,7 @@ def load_pedidos():
             df = df.rename(
                 columns={
                     "cliente": "Cliente",
+                    "quantidade": "Quantidade",
                     "nome_item": "Encomenda",
                     "data_solicitacao": "Data",
                     "data_pagamento": "Data de Pagamento",
@@ -489,6 +491,7 @@ def load_pedidos():
                 if column not in df.columns:
                     df[column] = ""
             df["Consultor"] = df["Consultor"].fillna("").replace("", "Isaac")
+            df["Quantidade"] = pd.to_numeric(df["Quantidade"], errors="coerce").fillna(1).clip(lower=1).astype(int)
             df["Encomenda"] = df["Encomenda"].fillna("")
             df["Forma de Pagamento"] = df["Forma de Pagamento"].fillna("").replace("", FORMA_PAGAMENTO_OPTIONS[0])
             df["Margem"] = df["Margem"].fillna("").replace("", "300%")
@@ -586,12 +589,21 @@ def sync_encomenda_changes(df_original, df_editado):
             continue
 
         linha_original = registro.iloc[0]
+        quantidade_editada = max(1, int(parse_float(linha_editada.get("Quantidade", 1))))
+        quantidade_original = max(1, int(parse_float(linha_original.get("Quantidade", 1))))
+        quantidade_mudou = quantidade_editada != quantidade_original
+        fator_quantidade = quantidade_editada / quantidade_original if quantidade_original else quantidade_editada
         peso_editado = parse_float(linha_editada["Peso (g)"])
         peso_original = parse_float(linha_original["Peso (g)"])
         custo_original = parse_float(linha_original["Custo (R$)"])
         preco_original = parse_float(linha_original["Preço Venda (R$)"])
         custo_editado = parse_float(linha_editada["Custo (R$)"])
         preco_editado = parse_float(linha_editada["Preço Venda (R$)"])
+
+        if quantidade_mudou:
+            peso_editado = peso_original * fator_quantidade
+            custo_editado = custo_original * fator_quantidade
+            preco_editado = preco_original * fator_quantidade
 
         peso_mudou = peso_editado != peso_original
         custo_mudou = round(custo_editado, 2) != round(custo_original, 2)
@@ -616,6 +628,7 @@ def sync_encomenda_changes(df_original, df_editado):
 
         payload = {
             "cliente": linha_editada["Cliente"],
+            "quantidade": quantidade_editada,
             "nome_item": linha_editada["Encomenda"],
             "consultor": linha_editada["Consultor"],
             "data_pagamento": str(linha_editada.get("Data de Pagamento", "") or "").strip(),
@@ -635,6 +648,7 @@ def sync_encomenda_changes(df_original, df_editado):
                 str(linha_editada["Consultor"]) != str(linha_original["Consultor"]),
                 str(linha_editada["Tipo de Projeto"]) != str(linha_original["Tipo de Projeto"]),
                 peso_mudou,
+                quantidade_mudou,
                 custo_mudou,
                 preco_mudou,
                 margem_mudou,
@@ -1625,12 +1639,13 @@ def render_encomendas(df_pedidos):
         with st.form("form_encomenda", clear_on_submit=True):
             cliente = st.text_input("Nome do Cliente")
             consultor = st.selectbox("Consultor", CONSULTORES)
+            quantidade = st.number_input("Quantidade", min_value=1, step=1, value=1)
             nome_item = st.text_input("Encomenda", placeholder="Ex: Chaveiro do Cruzeiro")
             data_sel = st.date_input("Data de Solicitação", today_brasilia(), format="DD/MM/YYYY")
             data_pagamento = st.text_input("Data de Pagamento", placeholder="Ex: 15/07/2026 ou PG")
             forma_pagamento = st.selectbox("Forma de Pagamento", FORMA_PAGAMENTO_OPTIONS)
             tipo_projeto = st.selectbox("Tipo de Projeto", LISTA_PROJETOS)
-            peso_gramas = st.number_input("Peso em Gramas (g)", min_value=0.0, step=1.0)
+            peso_gramas = st.number_input("Peso por Unidade (g)", min_value=0.0, step=1.0)
             margem_texto = st.selectbox("Margem de Venda", list(OPCOES_MARGEM.keys()), index=1)
             prioridade = st.selectbox("Prioridade", PRIORIDADE_OPTIONS)
             status_inicial = st.selectbox("Status", STATUS_OPTIONS)
@@ -1638,17 +1653,21 @@ def render_encomendas(df_pedidos):
             if st.form_submit_button("Salvar Encomenda"):
                 if cliente and peso_gramas > 0:
                     custo_calc, preco_calc = calculate_order_values(peso_gramas, margem_texto)
+                    custo_calc = custo_calc * int(quantidade)
+                    preco_calc = preco_calc * int(quantidade)
+                    peso_total = peso_gramas * int(quantidade)
                     data_br = data_sel.strftime("%d/%m/%Y")
 
                     payload = {
                         "cliente": cliente,
+                        "quantidade": int(quantidade),
                         "nome_item": nome_item,
                         "consultor": consultor,
                         "data_solicitacao": data_br,
                         "data_pagamento": data_pagamento.strip(),
                         "forma_pagamento": forma_pagamento,
                         "tipo_projeto": tipo_projeto,
-                        "peso_g": peso_gramas,
+                        "peso_g": peso_total,
                         "custo_rs": custo_calc,
                         "preco_venda_rs": preco_calc,
                         "margem": margem_texto,
@@ -1679,6 +1698,12 @@ def render_encomendas(df_pedidos):
                     "id": None,
                     "created_at": None,
                     "Cliente": st.column_config.TextColumn("Cliente", required=True),
+                    "Quantidade": st.column_config.NumberColumn(
+                        "Quantidade",
+                        min_value=1,
+                        step=1,
+                        required=True,
+                    ),
                     "Encomenda": st.column_config.TextColumn("Encomenda"),
                     "Consultor": st.column_config.SelectboxColumn(
                         "Consultor",
