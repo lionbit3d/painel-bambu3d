@@ -22,6 +22,10 @@ st.set_page_config(page_title="LionBit 3D Studio - Painel de Controle", layout="
 
 SUPABASE_URL = "https://ntybsaywkdmqcjhslehw.supabase.co/"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50eWJzYXl3a2RtcWNqaHNsZWh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNTQwMjgsImV4cCI6MjA5ODkzMDAyOH0.0pV_Lu60COGdjBCuVVSmqf2TNqH3I_0xlLSeJckenzA"
+try:
+    SITE_PASSWORD = st.secrets.get("SITE_PASSWORD", "LionBit5441")
+except Exception:
+    SITE_PASSWORD = "LionBit5441"
 
 HEADERS = {
     "apikey": SUPABASE_KEY,
@@ -337,9 +341,68 @@ design_premium = """
         color: #ffffff !important;
         overflow-wrap: anywhere;
     }
+    .lion-login-shell {
+        max-width: 980px;
+        margin: 3.5rem auto 0 auto;
+        padding: 0 1rem;
+        text-align: center;
+    }
+    .lion-login-shell img {
+        width: 100%;
+        max-height: 420px;
+        object-fit: contain;
+        margin-bottom: 1.25rem;
+    }
+    .lion-login-title {
+        color: #ffcc00 !important;
+        font-size: 2.1rem;
+        font-weight: 800;
+        margin: 0 0 0.2rem 0;
+    }
+    .lion-login-subtitle {
+        color: #ffffff !important;
+        margin: 0 0 1rem 0;
+    }
+    .lion-login-form {
+        max-width: 420px;
+        margin: 0 auto;
+    }
 </style>
 """
 st.markdown(design_premium, unsafe_allow_html=True)
+
+
+def require_login():
+    if st.session_state.get("site_authenticated"):
+        return
+
+    st.markdown("<div class='lion-login-shell'>", unsafe_allow_html=True)
+    try:
+        st.image("logo.png", use_container_width=True)
+    except Exception:
+        st.markdown("<div class='lion-login-title'>LionBit 3D Studio</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='lion-login-title'>LionBit 3D Studio</div>"
+        "<div class='lion-login-subtitle'>Acesso restrito ao painel</div>"
+        "<div class='lion-login-form'>",
+        unsafe_allow_html=True,
+    )
+    with st.form("login_form"):
+        senha_digitada = st.text_input("Senha", type="password")
+        entrar = st.form_submit_button("Entrar")
+    st.markdown("</div></div>", unsafe_allow_html=True)
+
+    if entrar:
+        if senha_digitada == SITE_PASSWORD:
+            st.session_state["site_authenticated"] = True
+            st.rerun()
+        else:
+            st.error("Senha incorreta.")
+
+    st.stop()
+
+
+require_login()
 
 
 def format_brl(value):
