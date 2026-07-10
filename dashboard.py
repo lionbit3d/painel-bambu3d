@@ -342,29 +342,29 @@ design_premium = """
         overflow-wrap: anywhere;
     }
     .lion-login-shell {
-        max-width: 980px;
-        margin: 3.5rem auto 0 auto;
+        max-width: 520px;
+        margin: 0.75rem auto 0 auto;
         padding: 0 1rem;
         text-align: center;
     }
     .lion-login-shell img {
         width: 100%;
-        max-height: 420px;
+        max-height: 190px;
         object-fit: contain;
-        margin-bottom: 1.25rem;
+        margin-bottom: 0.4rem;
     }
     .lion-login-title {
         color: #ffcc00 !important;
-        font-size: 2.1rem;
+        font-size: 1.45rem;
         font-weight: 800;
-        margin: 0 0 0.2rem 0;
+        margin: 0 0 0.1rem 0;
     }
     .lion-login-subtitle {
         color: #ffffff !important;
-        margin: 0 0 1rem 0;
+        margin: 0 0 0.45rem 0;
     }
     .lion-login-form {
-        max-width: 420px;
+        max-width: 360px;
         margin: 0 auto;
     }
 </style>
@@ -378,7 +378,7 @@ def require_login():
 
     st.markdown("<div class='lion-login-shell'>", unsafe_allow_html=True)
     try:
-        st.image("logo.png", use_container_width=True)
+        st.image("logo.png", width=320)
     except Exception:
         st.markdown("<div class='lion-login-title'>LionBit 3D Studio</div>", unsafe_allow_html=True)
     st.markdown(
