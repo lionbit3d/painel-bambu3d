@@ -90,14 +90,18 @@ CONSUMO_FILAMENTO_COLUMNS = [
 LISTA_PROJETOS = [
     "Suporte de Celular",
     "Letreiro de Quarto",
-    "Boneco Articulado",
-    "Boneco Decorativo",
+    "Boneco",
+    "Decoração",
     "Chaveiro",
     "Utilitário",
     "Utensílio Doméstico",
     "Peça Técnica",
     "Pet",
 ]
+TIPOS_PROJETO_LEGADOS = {
+    "Boneco Articulado": "Boneco",
+    "Boneco Decorativo": "Boneco",
+}
 
 OPCOES_MARGEM = {"250%": 2.5, "300%": 3.0, "350%": 3.5, "400%": 4.0}
 STATUS_OPTIONS = ["Pendente", "Imprimindo", "Concluído"]
@@ -576,7 +580,12 @@ def load_pedidos():
             df["Margem"] = df["Margem"].fillna("").replace("", "300%")
             df["Prioridade"] = df["Prioridade"].fillna("").replace("", "Verde").apply(prioridade_display_value)
             df["Status"] = df["Status"].fillna("").replace("", "Pendente")
-            df["Tipo de Projeto"] = df["Tipo de Projeto"].fillna("").replace("", LISTA_PROJETOS[0])
+            df["Tipo de Projeto"] = (
+                df["Tipo de Projeto"]
+                .fillna("")
+                .replace("", LISTA_PROJETOS[0])
+                .replace(TIPOS_PROJETO_LEGADOS)
+            )
             df = df[[column for column in PEDIDOS_COLUMNS if column in df.columns]]
         return df
     except Exception:
