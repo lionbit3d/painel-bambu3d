@@ -1817,7 +1817,12 @@ def render_encomendas(df_pedidos):
             st.write("### 🔍 Cronograma Prontuário")
         with col_busca_prontuario:
             termo_busca = st.text_input("Buscar", placeholder="Cliente, encomenda, projeto...")
-        filtro_status = st.multiselect("Filtrar por Status:", STATUS_OPTIONS, default=["Pendente", "Imprimindo"])
+        filtro_status = st.multiselect(
+            "Filtrar por Status:",
+            STATUS_OPTIONS,
+            default=STATUS_OPTIONS,
+            key="filtro_status_prontuario_todos",
+        )
         df_pedidos_filtrado = (
             df_pedidos[df_pedidos["Status"].isin(filtro_status)] if not df_pedidos.empty else df_pedidos
         )
@@ -1930,6 +1935,7 @@ def render_encomendas(df_pedidos):
                 disabled=[
                     "Data",
                 ],
+                height=720,
                 hide_index=True,
                 use_container_width=True,
             )
