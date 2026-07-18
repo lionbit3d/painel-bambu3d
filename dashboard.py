@@ -152,6 +152,11 @@ def bambu_network_message(host, port, detail):
 design_premium = """
 <style>
     .stApp { background-color: #121212; color: #ffffff !important; }
+    .block-container {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        max-width: 100% !important;
+    }
     h1, h2, h3, p, span, label, th, td { color: #ffffff !important; }
     div[data-testid="stMetric"] { background-color: #1e1e1e; border: 2px solid #ffcc00; border-radius: 10px; padding: 15px; }
     div[data-testid="stMetricLabel"] { color: #ffcc00 !important; font-weight: bold; font-size: 16px; }
@@ -186,6 +191,16 @@ design_premium = """
     div[class*="popover"], div[class*="dropdown"], div[class*="menu"] {
         background-color: #1e1e1e !important;
         color: #ffffff !important;
+    }
+    div[data-baseweb="tooltip"], div[role="tooltip"], div[data-testid="stTooltipContent"] {
+        background-color: #1e1e1e !important;
+        color: #ffffff !important;
+        border: 1px solid #ffcc00 !important;
+        border-radius: 6px !important;
+    }
+    div[data-baseweb="tooltip"] *, div[role="tooltip"] *, div[data-testid="stTooltipContent"] * {
+        color: #ffffff !important;
+        fill: #ffffff !important;
     }
     span[class*="text"], input[class*="edit"] {
         color: #ffffff !important;
@@ -630,6 +645,11 @@ def prepare_varejo_metrics(df_varejo):
 def render_global_metrics(df_pedidos, df_varejo):
     custo_pedidos = df_pedidos["Custo (R$)"].sum() if not df_pedidos.empty else 0.0
     faturamento_pedidos = df_pedidos["Preço Venda (R$)"].sum() if not df_pedidos.empty else 0.0
+    quantidade_vendas_ativas = (
+        int(pd.to_numeric(df_pedidos["Quantidade"], errors="coerce").fillna(0).sum())
+        if not df_pedidos.empty and "Quantidade" in df_pedidos.columns
+        else 0
+    )
 
     if not df_varejo.empty:
         custo_varejo = df_varejo["Total Custo Enviado"].sum()
@@ -641,11 +661,12 @@ def render_global_metrics(df_pedidos, df_varejo):
     faturamento_global = faturamento_pedidos + faturamento_varejo
     lucro_global = faturamento_global - custo_global
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     col1.metric("📦 Total de Pedidos Ativos", len(df_pedidos) + len(df_varejo))
-    col2.metric("📉 Custo Total de Material", format_brl(custo_global))
-    col3.metric("💰 Faturamento Bruto", format_brl(faturamento_global))
-    col4.metric("🔥 Lucro Líquido Geral", format_brl(lucro_global))
+    col2.metric("🧾 Vendas Ativas", quantidade_vendas_ativas)
+    col3.metric("📉 Custo Total de Material", format_brl(custo_global))
+    col4.metric("💰 Faturamento Bruto", format_brl(faturamento_global))
+    col5.metric("🔥 Lucro Líquido Geral", format_brl(lucro_global))
 
 
 def sync_encomenda_changes(df_original, df_editado):
@@ -1721,26 +1742,27 @@ def render_encomendas(df_pedidos):
             with col_projeto:
                 tipo_projeto = st.selectbox("Tipo de Projeto", LISTA_PROJETOS)
 
-            col_data, col_data_pagamento, col_forma = st.columns([0.9, 1, 0.9])
+            col_data, col_forma = st.columns(2)
             with col_data:
                 data_sel = st.date_input("Data de Solicitação", today_brasilia(), format="DD/MM/YYYY")
-            with col_data_pagamento:
-                col_pg, col_pagamento = st.columns([0.32, 0.68])
-                with col_pg:
-                    pagamento_pg = st.checkbox("PG")
-                with col_pagamento:
-                    data_pagamento_sel = st.date_input(
-                        "Data de Pagamento",
-                        today_brasilia(),
-                        format="DD/MM/YYYY",
-                    )
-                data_pagamento = "PG" if pagamento_pg else data_pagamento_sel.strftime("%d/%m/%Y")
             with col_forma:
                 forma_pagamento = st.selectbox("Forma de Pagamento", FORMA_PAGAMENTO_OPTIONS)
 
+            col_data_pagamento, col_pg = st.columns([0.74, 0.26])
+            with col_data_pagamento:
+                data_pagamento_sel = st.date_input(
+                    "Data de Pagamento",
+                    today_brasilia(),
+                    format="DD/MM/YYYY",
+                )
+            with col_pg:
+                st.write("")
+                pagamento_pg = st.checkbox("PG")
+            data_pagamento = "PG" if pagamento_pg else data_pagamento_sel.strftime("%d/%m/%Y")
+
             col_peso, col_valor, col_outros = st.columns(3)
             with col_peso:
-                peso_gramas = st.number_input("Peso/Un. (g)", min_value=0, step=1, value=0)
+                peso_gramas = st.number_input("Peso/Un. (g)", min_value=0, step=1, value=0, format="%d")
             with col_valor:
                 valor_produto = st.number_input("Valor Produto (R$)", min_value=0.0, step=1.0, format="%.2f")
             with col_outros:
