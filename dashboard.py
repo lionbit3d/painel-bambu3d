@@ -1862,6 +1862,7 @@ def render_encomendas(df_pedidos):
             df_pedidos_exibicao = df_pedidos_filtrado.copy()
             df_pedidos_exibicao["Custo (R$)"] = df_pedidos_exibicao["Custo (R$)"].apply(parse_float)
             df_pedidos_exibicao["Preço Venda (R$)"] = df_pedidos_exibicao["Preço Venda (R$)"].apply(parse_float)
+            df_pedidos_exibicao["Apagar"] = False
             tabela_editavel = st.data_editor(
                 df_pedidos_exibicao,
                 column_config={
@@ -1931,7 +1932,7 @@ def render_encomendas(df_pedidos):
                     "Prioridade": st.column_config.SelectboxColumn(
                         "Prio.",
                         options=PRIORIDADE_OPTIONS,
-                        width="small",
+                        width=58,
                         required=True,
                     ),
                     "Status": st.column_config.SelectboxColumn(
@@ -1939,6 +1940,11 @@ def render_encomendas(df_pedidos):
                         options=STATUS_OPTIONS,
                         width="small",
                         required=True,
+                    ),
+                    "Apagar": st.column_config.CheckboxColumn(
+                        "Apagar",
+                        width=72,
+                        default=False,
                     ),
                 },
                 disabled=[
@@ -1949,25 +1955,27 @@ def render_encomendas(df_pedidos):
                 use_container_width=True,
             )
             if st.button("Salvar alterações do prontuário", use_container_width=True):
-                sync_encomenda_changes(df_pedidos_filtrado, tabela_editavel)
+                tabela_para_salvar = tabela_editavel.drop(columns=["Apagar"], errors="ignore")
+                sync_encomenda_changes(df_pedidos_filtrado, tabela_para_salvar)
 
             render_order_details_launcher(df_pedidos_filtrado)
 
-            opcoes_exclusao = {
-                f"{row['Cliente']} | {row['Encomenda']} | {row['Tipo de Projeto']} | {row['Data']} | ID {row['id']}": row["id"]
-                for _, row in df_pedidos_filtrado.iterrows()
-            }
-            col_excluir_select, col_excluir_button = st.columns([2, 1])
-            with col_excluir_select:
-                encomenda_para_excluir = st.selectbox("Encomenda para excluir", list(opcoes_exclusao.keys()))
-            with col_excluir_button:
-                st.write("")
-                if st.button("Excluir encomenda selecionada", use_container_width=True):
-                    if delete_encomenda(opcoes_exclusao[encomenda_para_excluir]):
-                        st.success("Encomenda excluída do banco de dados!")
-                        st.rerun()
+            ids_para_apagar = (
+                pd.to_numeric(tabela_editavel.loc[tabela_editavel["Apagar"] == True, "id"], errors="coerce")
+                .dropna()
+                .astype(int)
+                .tolist()
+            )
+            if st.button("Apagar selecionados", use_container_width=True):
+                if not ids_para_apagar:
+                    st.warning("Marque pelo menos uma encomenda na coluna Apagar.")
+                else:
+                    falhas = [encomenda_id for encomenda_id in ids_para_apagar if not delete_encomenda(encomenda_id)]
+                    if falhas:
+                        st.error("Não consegui apagar uma ou mais encomendas selecionadas.")
                     else:
-                        st.error("Não consegui excluir essa encomenda agora.")
+                        st.success(f"{len(ids_para_apagar)} encomenda(s) apagada(s) do banco de dados!")
+                        st.rerun()
         else:
             st.info("Nenhuma encomenda encontrada para os filtros selecionados.")
 
