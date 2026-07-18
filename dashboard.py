@@ -1958,8 +1958,6 @@ def render_encomendas(df_pedidos):
                 tabela_para_salvar = tabela_editavel.drop(columns=["Apagar"], errors="ignore")
                 sync_encomenda_changes(df_pedidos_filtrado, tabela_para_salvar)
 
-            render_order_details_launcher(df_pedidos_filtrado)
-
             ids_para_apagar = (
                 pd.to_numeric(tabela_editavel.loc[tabela_editavel["Apagar"] == True, "id"], errors="coerce")
                 .dropna()
@@ -1976,6 +1974,8 @@ def render_encomendas(df_pedidos):
                     else:
                         st.success(f"{len(ids_para_apagar)} encomenda(s) apagada(s) do banco de dados!")
                         st.rerun()
+
+            render_order_details_launcher(df_pedidos_filtrado)
         else:
             st.info("Nenhuma encomenda encontrada para os filtros selecionados.")
 
