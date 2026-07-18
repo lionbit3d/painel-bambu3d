@@ -1725,13 +1725,22 @@ def render_encomendas(df_pedidos):
             with col_data:
                 data_sel = st.date_input("Data de Solicitação", today_brasilia(), format="DD/MM/YYYY")
             with col_data_pagamento:
-                data_pagamento = st.text_input("Data de Pagamento", placeholder="Ex: 15/07/2026 ou PG")
+                col_pg, col_pagamento = st.columns([0.32, 0.68])
+                with col_pg:
+                    pagamento_pg = st.checkbox("PG")
+                with col_pagamento:
+                    data_pagamento_sel = st.date_input(
+                        "Data de Pagamento",
+                        today_brasilia(),
+                        format="DD/MM/YYYY",
+                    )
+                data_pagamento = "PG" if pagamento_pg else data_pagamento_sel.strftime("%d/%m/%Y")
             with col_forma:
                 forma_pagamento = st.selectbox("Forma de Pagamento", FORMA_PAGAMENTO_OPTIONS)
 
             col_peso, col_valor, col_outros = st.columns(3)
             with col_peso:
-                peso_gramas = st.number_input("Peso/Un. (g)", min_value=0.0, step=1.0)
+                peso_gramas = st.number_input("Peso/Un. (g)", min_value=0, step=1, value=0)
             with col_valor:
                 valor_produto = st.number_input("Valor Produto (R$)", min_value=0.0, step=1.0, format="%.2f")
             with col_outros:
