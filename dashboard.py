@@ -97,6 +97,8 @@ LISTA_PROJETOS = [
     "Utensílio Doméstico",
     "Peça Técnica",
     "Pet",
+    "Esporte",
+    "Outros",
 ]
 TIPOS_PROJETO_LEGADOS = {
     "Boneco Articulado": "Boneco",
