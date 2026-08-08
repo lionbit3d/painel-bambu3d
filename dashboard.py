@@ -1861,7 +1861,7 @@ def render_prontuario_editor(df_pedidos_filtrado, key_suffix):
         key=f"prontuario_editor_{key_suffix}",
     )
     if st.button(
-        "Salvar alteraÃ§Ãµes do prontuÃ¡rio",
+        "Salvar alteracoes do prontuario",
         width="stretch",
         key=f"salvar_prontuario_{key_suffix}",
     ):
