@@ -1697,7 +1697,7 @@ def render_order_details_launcher(df_pedidos_filtrado, key_suffix="geral"):
 def render_prontuario_editor(df_pedidos_filtrado, key_suffix):
     df_pedidos_exibicao = df_pedidos_filtrado.copy()
     df_pedidos_exibicao["Custo (R$)"] = df_pedidos_exibicao["Custo (R$)"].apply(parse_float)
-    df_pedidos_exibicao["PreÃ§o Venda (R$)"] = df_pedidos_exibicao["PreÃ§o Venda (R$)"].apply(parse_float)
+    df_pedidos_exibicao["Preço Venda (R$)"] = df_pedidos_exibicao["Preço Venda (R$)"].apply(parse_float)
     df_pedidos_exibicao["Apagar"] = False
     altura_tabela = min(720, max(260, 88 + (len(df_pedidos_exibicao) * 36)))
     tabela_editavel = st.data_editor(
@@ -1753,7 +1753,7 @@ def render_prontuario_editor(df_pedidos_filtrado, key_suffix):
                 width="small",
                 required=True,
             ),
-            "PreÃ§o Venda (R$)": st.column_config.NumberColumn(
+            "Preço Venda (R$)": st.column_config.NumberColumn(
                 "Venda",
                 min_value=0.0,
                 step=0.01,
