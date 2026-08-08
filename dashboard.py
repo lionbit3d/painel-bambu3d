@@ -168,7 +168,20 @@ design_premium = """
     div[data-testid="stMetricLabel"] { color: #ffcc00 !important; font-weight: bold; font-size: 16px; }
     div[data-testid="stMetricValue"] { color: #ffffff !important; font-weight: bold; }
     button[data-baseweb="tab"] { color: #aaaaaa !important; font-size: 16px; }
-    button[aria-selected="true"] { color: #ffcc00 !important; border-bottom-color: #ffcc00 !important; font-weight: bold; }
+    button[data-baseweb="tab"][aria-selected="true"],
+    button[aria-selected="true"] {
+        background-color: #2a0f0f !important;
+        color: #ffcc00 !important;
+        border-color: #ff3b3b !important;
+        border-bottom-color: #ffcc00 !important;
+        font-weight: bold;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] *,
+    button[aria-selected="true"] * {
+        color: #ffcc00 !important;
+        fill: #ffcc00 !important;
+        stroke: #ffcc00 !important;
+    }
     .stTextInput input, .stSelectbox select, .stNumberInput input { background-color: #262626 !important; color: #ffffff !important; border: 1px solid #ffcc00 !important; }
     .stTextInput input::placeholder { color: #d9d9d9 !important; opacity: 1 !important; }
     div[data-baseweb="select"] { background-color: #262626 !important; border-radius: 4px !important; }
@@ -176,10 +189,29 @@ design_premium = """
     ul[role="listbox"] { background-color: #1e1e1e !important; }
     li[role="option"] { color: #ffffff !important; background-color: #1e1e1e !important; }
     li[role="option"]:hover { background-color: #ffcc00 !important; color: #000000 !important; }
+    li[role="option"][aria-selected="true"],
+    li[role="option"][aria-checked="true"] {
+        background-color: #ffcc00 !important;
+        color: #000000 !important;
+        font-weight: bold !important;
+    }
+    li[role="option"][aria-selected="true"] *,
+    li[role="option"][aria-checked="true"] * {
+        color: #000000 !important;
+        fill: #000000 !important;
+    }
     .stFormSubmitButton > button { background-color: #ffcc00 !important; color: #000000 !important; font-weight: bold !important; border: 2px solid #ffcc00 !important; border-radius: 5px !important; width: 100% !important; padding: 10px 0px !important; }
     .stFormSubmitButton > button:hover { background-color: #e6b800 !important; color: #000000 !important; border-color: #e6b800 !important; }
     .stButton > button { background-color: #ffcc00 !important; color: #000000 !important; font-weight: bold !important; border: 2px solid #ffcc00 !important; border-radius: 5px !important; width: 100% !important; }
     .stButton > button:hover { background-color: #e6b800 !important; color: #000000 !important; border-color: #e6b800 !important; }
+    .stButton > button:focus,
+    .stButton > button:focus-visible,
+    .stButton > button:active {
+        background-color: #ffcc00 !important;
+        color: #000000 !important;
+        border-color: #ff3b3b !important;
+        box-shadow: 0 0 0 2px rgba(255, 59, 59, 0.55) !important;
+    }
     .stButton > button p, .stButton > button span { color: #000000 !important; }
     div[data-testid="stTableEditor"], div.glide-data-grid, .gdg-elements {
         background-color: #1a1a1a !important;
