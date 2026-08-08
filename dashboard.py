@@ -71,6 +71,11 @@ PRODUTOS_COLUMNS = [
     "Valor (R$)",
 ]
 
+OUTROS_CUSTOS_OPCOES = [
+    ("Chaveiro", 0.44),
+    ("Cordão 70cm", 0.45),
+]
+
 
 IMPRESSOES_COLUMNS = [
     "id",
@@ -509,6 +514,28 @@ def format_brl(value):
 
 def format_brl_label(value):
     return format_brl(value).replace("$", r"\$")
+
+
+def outros_custos_input(label="Outros custos (R$)", key_prefix="outros_custos", help_text=None):
+    valor_manual = st.number_input(
+        label,
+        min_value=0.0,
+        step=1.0,
+        format="%.2f",
+        help=help_text,
+        key=f"{key_prefix}_manual",
+    )
+    cols = st.columns(len(OUTROS_CUSTOS_OPCOES))
+    valor_opcoes = 0.0
+    for col, (nome, valor) in zip(cols, OUTROS_CUSTOS_OPCOES):
+        with col:
+            marcado = st.checkbox(
+                f"{nome}: {format_brl(valor)}",
+                key=f"{key_prefix}_{nome.lower().replace(' ', '_')}",
+            )
+        if marcado:
+            valor_opcoes += valor
+    return round(valor_manual + valor_opcoes, 2)
 
 
 def normalize_hex_color(value):
@@ -2055,12 +2082,9 @@ def render_encomendas(df_pedidos):
             with col_valor:
                 valor_produto = st.number_input("Valor Produto (R$)", min_value=0.0, step=1.0, format="%.2f")
             with col_outros:
-                outros_custos = st.number_input(
-                    "Outros custos (R$)",
-                    min_value=0.0,
-                    step=1.0,
-                    format="%.2f",
-                    help="Ex: coleira, pingente, outros materiais.",
+                outros_custos = outros_custos_input(
+                    key_prefix="encomenda_outros_custos",
+                    help_text="Ex: coleira, pingente, outros materiais.",
                 )
 
             col_prioridade, col_status = st.columns(2)
@@ -2211,7 +2235,7 @@ grant usage, select on sequence public.produtos_id_seq to anon, authenticated;
         with st.form("form_produtos", clear_on_submit=True):
             nome_produto = st.text_input("Nome do Produto")
             peso_produto = st.number_input("Peso (g)", min_value=0, step=1, value=0, format="%d")
-            outros_custos = st.number_input("Outros custos (R$)", min_value=0.0, step=1.0, format="%.2f")
+            outros_custos = outros_custos_input(key_prefix="produto_outros_custos")
             valor_produto = st.number_input("Valor (R$)", min_value=0.0, step=1.0, format="%.2f")
 
             if st.form_submit_button("Salvar Produto"):
