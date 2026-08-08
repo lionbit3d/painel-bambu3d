@@ -540,6 +540,44 @@ def calculate_order_values(peso_gramas, margem_texto):
     return round(custo_calc, 2), round(preco_calc, 2)
 
 
+MESES_PT = [
+    "Janeiro",
+    "Fevereiro",
+    "Marco",
+    "Abril",
+    "Maio",
+    "Junho",
+    "Julho",
+    "Agosto",
+    "Setembro",
+    "Outubro",
+    "Novembro",
+    "Dezembro",
+]
+
+
+def parse_br_date(value):
+    if pd.isna(value):
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    try:
+        return datetime.strptime(str(value).strip(), "%d/%m/%Y").date()
+    except (TypeError, ValueError):
+        return None
+
+
+def pedido_month_info(row):
+    data_pedido = parse_br_date(row.get("Data", ""))
+    if not data_pedido:
+        return 0, "Sem data"
+    return data_pedido.year * 100 + data_pedido.month, f"{MESES_PT[data_pedido.month - 1]}/{data_pedido.year}"
+
+
+def safe_widget_key(value):
+    return re.sub(r"[^A-Za-z0-9_]+", "_", str(value)).strip("_").lower() or "geral"
+
+
 def empty_pedidos():
     return pd.DataFrame(columns=PEDIDOS_COLUMNS)
 
@@ -1627,7 +1665,7 @@ def open_order_details_dialog(order_row):
         st.session_state["detalhes_encomenda_id"] = int(order_row["id"])
 
 
-def render_order_details_launcher(df_pedidos_filtrado):
+def render_order_details_launcher(df_pedidos_filtrado, key_suffix="geral"):
     if df_pedidos_filtrado.empty:
         return
 
@@ -1638,10 +1676,14 @@ def render_order_details_launcher(df_pedidos_filtrado):
     }
     col_select, col_button = st.columns([2, 1])
     with col_select:
-        detalhe_escolhido = st.selectbox("Encomenda para abrir detalhes", list(opcoes_detalhes.keys()))
+        detalhe_escolhido = st.selectbox(
+            "Encomenda para abrir detalhes",
+            list(opcoes_detalhes.keys()),
+            key=f"detalhe_encomenda_{key_suffix}",
+        )
     with col_button:
         st.write("")
-        if st.button("Abrir detalhes", use_container_width=True):
+        if st.button("Abrir detalhes", use_container_width=True, key=f"abrir_detalhes_{key_suffix}"):
             open_order_details_dialog(opcoes_detalhes[detalhe_escolhido])
 
     fallback_id = st.session_state.get("detalhes_encomenda_id")
@@ -1650,6 +1692,132 @@ def render_order_details_launcher(df_pedidos_filtrado):
         if not registro.empty:
             with st.expander("Detalhes da encomenda", expanded=True):
                 render_order_detail_content(registro.iloc[0])
+
+
+def render_prontuario_editor(df_pedidos_filtrado, key_suffix):
+    df_pedidos_exibicao = df_pedidos_filtrado.copy()
+    df_pedidos_exibicao["Custo (R$)"] = df_pedidos_exibicao["Custo (R$)"].apply(parse_float)
+    df_pedidos_exibicao["PreÃ§o Venda (R$)"] = df_pedidos_exibicao["PreÃ§o Venda (R$)"].apply(parse_float)
+    df_pedidos_exibicao["Apagar"] = False
+    altura_tabela = min(720, max(260, 88 + (len(df_pedidos_exibicao) * 36)))
+    tabela_editavel = st.data_editor(
+        df_pedidos_exibicao,
+        column_config={
+            "id": None,
+            "created_at": None,
+            "Cliente": st.column_config.TextColumn("Cliente", width="small", required=True),
+            "Quantidade": st.column_config.NumberColumn(
+                "Qtde",
+                min_value=1,
+                step=1,
+                width=56,
+                required=True,
+            ),
+            "Encomenda": st.column_config.TextColumn("Encomenda", width=220),
+            "Consultor": st.column_config.SelectboxColumn(
+                "Consultor",
+                options=CONSULTORES,
+                width=82,
+                required=True,
+            ),
+            "Data": st.column_config.TextColumn("Data", width="small"),
+            "Data de Pagamento": st.column_config.TextColumn(
+                "Data pag.",
+                width="small",
+                help="Preencha uma data ou PG.",
+            ),
+            "Forma de Pagamento": st.column_config.SelectboxColumn(
+                "Forma de pag.",
+                options=FORMA_PAGAMENTO_OPTIONS,
+                width="small",
+                required=True,
+            ),
+            "Tipo de Projeto": st.column_config.SelectboxColumn(
+                "Projeto",
+                options=LISTA_PROJETOS,
+                width="small",
+                required=True,
+            ),
+            "Peso (g)": st.column_config.NumberColumn(
+                "Peso",
+                min_value=0.0,
+                step=1.0,
+                width="small",
+                required=True,
+            ),
+            "Custo (R$)": st.column_config.NumberColumn(
+                "Custo",
+                min_value=0.0,
+                step=0.01,
+                format="R$ %.2f",
+                width="small",
+                required=True,
+            ),
+            "PreÃ§o Venda (R$)": st.column_config.NumberColumn(
+                "Venda",
+                min_value=0.0,
+                step=0.01,
+                format="R$ %.2f",
+                width="small",
+                required=True,
+            ),
+            "Margem": st.column_config.TextColumn(
+                "Margem",
+                width="small",
+                required=True,
+            ),
+            "Prioridade": st.column_config.SelectboxColumn(
+                "Prio.",
+                options=PRIORIDADE_OPTIONS,
+                width=58,
+                required=True,
+            ),
+            "Status": st.column_config.SelectboxColumn(
+                "Status",
+                options=STATUS_OPTIONS,
+                width="small",
+                required=True,
+            ),
+            "Apagar": st.column_config.CheckboxColumn(
+                "Apagar",
+                width=72,
+                default=False,
+            ),
+        },
+        disabled=[
+            "Data",
+        ],
+        height=altura_tabela,
+        hide_index=True,
+        use_container_width=True,
+        key=f"prontuario_editor_{key_suffix}",
+    )
+    if st.button(
+        "Salvar alteraÃ§Ãµes do prontuÃ¡rio",
+        use_container_width=True,
+        key=f"salvar_prontuario_{key_suffix}",
+    ):
+        tabela_para_salvar = tabela_editavel.drop(columns=["Apagar"], errors="ignore")
+        sync_encomenda_changes(df_pedidos_filtrado, tabela_para_salvar)
+
+    ids_para_apagar = (
+        pd.to_numeric(tabela_editavel.loc[tabela_editavel["Apagar"] == True, "id"], errors="coerce")
+        .dropna()
+        .astype(int)
+        .tolist()
+    )
+    if st.button("Apagar selecionados", use_container_width=True, key=f"apagar_prontuario_{key_suffix}"):
+        if not ids_para_apagar:
+            st.warning("Marque pelo menos uma encomenda na coluna Apagar.")
+        else:
+            falhas = [encomenda_id for encomenda_id in ids_para_apagar if not delete_encomenda(encomenda_id)]
+            if falhas:
+                st.error("NÃ£o consegui apagar uma ou mais encomendas selecionadas.")
+            else:
+                st.success(f"{len(ids_para_apagar)} encomenda(s) apagada(s) do banco de dados!")
+                st.rerun()
+
+    render_order_details_launcher(df_pedidos_filtrado, key_suffix)
 
 
 def render_bambu_lab(df_pedidos):
@@ -1861,124 +2029,26 @@ def render_encomendas(df_pedidos):
             df_pedidos_filtrado = df_pedidos_filtrado[mascara_busca]
 
         if not df_pedidos_filtrado.empty:
-            df_pedidos_exibicao = df_pedidos_filtrado.copy()
-            df_pedidos_exibicao["Custo (R$)"] = df_pedidos_exibicao["Custo (R$)"].apply(parse_float)
-            df_pedidos_exibicao["Preço Venda (R$)"] = df_pedidos_exibicao["Preço Venda (R$)"].apply(parse_float)
-            df_pedidos_exibicao["Apagar"] = False
-            tabela_editavel = st.data_editor(
-                df_pedidos_exibicao,
-                column_config={
-                    "id": None,
-                    "created_at": None,
-                    "Cliente": st.column_config.TextColumn("Cliente", width="small", required=True),
-                    "Quantidade": st.column_config.NumberColumn(
-                        "Qtde",
-                        min_value=1,
-                        step=1,
-                        width=56,
-                        required=True,
-                    ),
-                    "Encomenda": st.column_config.TextColumn("Encomenda", width=220),
-                    "Consultor": st.column_config.SelectboxColumn(
-                        "Consultor",
-                        options=CONSULTORES,
-                        width=82,
-                        required=True,
-                    ),
-                    "Data": st.column_config.TextColumn("Data", width="small"),
-                    "Data de Pagamento": st.column_config.TextColumn(
-                        "Data pag.",
-                        width="small",
-                        help="Preencha uma data ou PG.",
-                    ),
-                    "Forma de Pagamento": st.column_config.SelectboxColumn(
-                        "Forma de pag.",
-                        options=FORMA_PAGAMENTO_OPTIONS,
-                        width="small",
-                        required=True,
-                    ),
-                    "Tipo de Projeto": st.column_config.SelectboxColumn(
-                        "Projeto",
-                        options=LISTA_PROJETOS,
-                        width="small",
-                        required=True,
-                    ),
-                    "Peso (g)": st.column_config.NumberColumn(
-                        "Peso",
-                        min_value=0.0,
-                        step=1.0,
-                        width="small",
-                        required=True,
-                    ),
-                    "Custo (R$)": st.column_config.NumberColumn(
-                        "Custo",
-                        min_value=0.0,
-                        step=0.01,
-                        format="R$ %.2f",
-                        width="small",
-                        required=True,
-                    ),
-                    "Preço Venda (R$)": st.column_config.NumberColumn(
-                        "Venda",
-                        min_value=0.0,
-                        step=0.01,
-                        format="R$ %.2f",
-                        width="small",
-                        required=True,
-                    ),
-                    "Margem": st.column_config.TextColumn(
-                        "Margem",
-                        width="small",
-                        required=True,
-                    ),
-                    "Prioridade": st.column_config.SelectboxColumn(
-                        "Prio.",
-                        options=PRIORIDADE_OPTIONS,
-                        width=58,
-                        required=True,
-                    ),
-                    "Status": st.column_config.SelectboxColumn(
-                        "Status",
-                        options=STATUS_OPTIONS,
-                        width="small",
-                        required=True,
-                    ),
-                    "Apagar": st.column_config.CheckboxColumn(
-                        "Apagar",
-                        width=72,
-                        default=False,
-                    ),
-                },
-                disabled=[
-                    "Data",
-                ],
-                height=720,
-                hide_index=True,
-                use_container_width=True,
+            df_pedidos_mensal = df_pedidos_filtrado.copy()
+            df_pedidos_mensal[["_mes_ordem", "_mes_label"]] = df_pedidos_mensal.apply(
+                lambda row: pd.Series(pedido_month_info(row)),
+                axis=1,
             )
-            if st.button("Salvar alterações do prontuário", use_container_width=True):
-                tabela_para_salvar = tabela_editavel.drop(columns=["Apagar"], errors="ignore")
-                sync_encomenda_changes(df_pedidos_filtrado, tabela_para_salvar)
-
-            ids_para_apagar = (
-                pd.to_numeric(tabela_editavel.loc[tabela_editavel["Apagar"] == True, "id"], errors="coerce")
-                .dropna()
-                .astype(int)
-                .tolist()
+            df_pedidos_mensal["_data_ordem"] = df_pedidos_mensal["Data"].apply(
+                lambda value: parse_br_date(value) or datetime.min.date()
             )
-            if st.button("Apagar selecionados", use_container_width=True):
-                if not ids_para_apagar:
-                    st.warning("Marque pelo menos uma encomenda na coluna Apagar.")
-                else:
-                    falhas = [encomenda_id for encomenda_id in ids_para_apagar if not delete_encomenda(encomenda_id)]
-                    if falhas:
-                        st.error("Não consegui apagar uma ou mais encomendas selecionadas.")
-                    else:
-                        st.success(f"{len(ids_para_apagar)} encomenda(s) apagada(s) do banco de dados!")
-                        st.rerun()
+            for mes_ordem in sorted(df_pedidos_mensal["_mes_ordem"].unique(), reverse=True):
+                df_mes = df_pedidos_mensal[df_pedidos_mensal["_mes_ordem"] == mes_ordem].copy()
+                mes_label = str(df_mes["_mes_label"].iloc[0])
+                quantidade_mes = int(pd.to_numeric(df_mes["Quantidade"], errors="coerce").fillna(0).sum())
+                total_mes = len(df_mes)
+                df_mes = df_mes.sort_values(["_data_ordem", "id"], ascending=[True, True])
+                df_mes = df_mes.drop(columns=["_mes_ordem", "_mes_label", "_data_ordem"], errors="ignore")
+                titulo_mes = f"{mes_label} | {total_mes} pedido(s) | {quantidade_mes} venda(s)"
+                with st.expander(titulo_mes, expanded=True):
+                    render_prontuario_editor(df_mes, safe_widget_key(f"{mes_ordem}_{mes_label}"))
 
-            render_order_details_launcher(df_pedidos_filtrado)
-        else:
+        if df_pedidos_filtrado.empty:
             st.info("Nenhuma encomenda encontrada para os filtros selecionados.")
 
 
