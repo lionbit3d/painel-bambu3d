@@ -507,14 +507,12 @@ def outros_custos_input(label="Outros custos (R$)", key_prefix="outros_custos", 
         help=help_text,
         key=f"{key_prefix}_manual",
     )
-    cols = st.columns(len(OUTROS_CUSTOS_OPCOES))
     valor_opcoes = 0.0
-    for col, (nome, valor) in zip(cols, OUTROS_CUSTOS_OPCOES):
-        with col:
-            marcado = st.checkbox(
-                f"{nome}: {format_brl(valor)}",
-                key=f"{key_prefix}_{nome.lower().replace(' ', '_')}",
-            )
+    for nome, valor in OUTROS_CUSTOS_OPCOES:
+        marcado = st.checkbox(
+            f"{nome}: {format_brl(valor)}",
+            key=f"{key_prefix}_{nome.lower().replace(' ', '_')}",
+        )
         if marcado:
             valor_opcoes += valor
     return round(valor_manual + valor_opcoes, 2)
