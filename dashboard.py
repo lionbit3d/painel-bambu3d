@@ -43,7 +43,6 @@ PEDIDOS_COLUMNS = [
     "Data",
     "Data de Pagamento",
     "Forma de Pagamento",
-    "Tipo de Projeto",
     "Peso (g)",
     "Custo (R$)",
     "Preço Venda (R$)",
@@ -100,24 +99,6 @@ CONSUMO_FILAMENTO_COLUMNS = [
     "id", "created_at", "impressao_id", "encomenda_id", "filamento_id",
     "peso_usado_g", "observacao",
 ]
-
-LISTA_PROJETOS = [
-    "Suporte de Celular",
-    "Letreiro de Quarto",
-    "Boneco",
-    "Decoração",
-    "Chaveiro",
-    "Utilitário",
-    "Utensílio Doméstico",
-    "Peça Técnica",
-    "Pet",
-    "Esporte",
-    "Outros",
-]
-TIPOS_PROJETO_LEGADOS = {
-    "Boneco Articulado": "Boneco",
-    "Boneco Decorativo": "Boneco",
-}
 
 OPCOES_MARGEM = {"250%": 2.5, "300%": 3.0, "350%": 3.5, "400%": 4.0}
 STATUS_OPTIONS = ["Pendente", "Imprimindo", "Concluído"]
@@ -710,7 +691,6 @@ def load_pedidos():
                     "data_pagamento": "Data de Pagamento",
                     "forma_pagamento": "Forma de Pagamento",
                     "consultor": "Consultor",
-                    "tipo_projeto": "Tipo de Projeto",
                     "peso_g": "Peso (g)",
                     "custo_rs": "Custo (R$)",
                     "preco_venda_rs": "Preço Venda (R$)",
@@ -729,12 +709,6 @@ def load_pedidos():
             df["Margem"] = df["Margem"].fillna("").replace("", "300%")
             df["Prioridade"] = df["Prioridade"].fillna("").replace("", "Verde").apply(prioridade_display_value)
             df["Status"] = df["Status"].fillna("").replace("", "Pendente")
-            df["Tipo de Projeto"] = (
-                df["Tipo de Projeto"]
-                .fillna("")
-                .replace("", LISTA_PROJETOS[0])
-                .replace(TIPOS_PROJETO_LEGADOS)
-            )
             df = df[[column for column in PEDIDOS_COLUMNS if column in df.columns]]
         return df
     except Exception:
@@ -911,7 +885,6 @@ def sync_encomenda_changes(df_original, df_editado):
             "consultor": linha_editada["Consultor"],
             "data_pagamento": str(linha_editada.get("Data de Pagamento", "") or "").strip(),
             "forma_pagamento": linha_editada.get("Forma de Pagamento", FORMA_PAGAMENTO_OPTIONS[0]),
-            "tipo_projeto": linha_editada["Tipo de Projeto"],
             "peso_g": peso_editado,
             "custo_rs": round(custo_final, 2),
             "preco_venda_rs": round(preco_final, 2),
@@ -924,7 +897,6 @@ def sync_encomenda_changes(df_original, df_editado):
                 str(linha_editada["Cliente"]) != str(linha_original["Cliente"]),
                 str(linha_editada["Encomenda"]) != str(linha_original["Encomenda"]),
                 str(linha_editada["Consultor"]) != str(linha_original["Consultor"]),
-                str(linha_editada["Tipo de Projeto"]) != str(linha_original["Tipo de Projeto"]),
                 peso_mudou,
                 quantidade_mudou,
                 custo_mudou,
@@ -1320,8 +1292,8 @@ def render_filament_inventory():
 
 
 def pedido_label(row):
-    item = str(row.get("Encomenda", "") or row.get("Tipo de Projeto", "")).strip()
-    return f"{row['Cliente']} | {item} | {row['Tipo de Projeto']} | {row['Data']} | {row['Status']} | ID {row['id']}"
+    item = str(row.get("Encomenda", "")).strip()
+    return f"{row['Cliente']} | {item} | {row['Data']} | {row['Status']} | ID {row['id']}"
 
 
 def get_order_summary(df_pedidos):
@@ -1331,7 +1303,6 @@ def get_order_summary(df_pedidos):
         int(row["id"]): {
             "Cliente": row.get("Cliente", ""),
             "Encomenda": row.get("Encomenda", ""),
-            "Tipo de Projeto": row.get("Tipo de Projeto", ""),
             "Status do Pedido": row.get("Status", ""),
         }
         for _, row in df_pedidos.iterrows()
@@ -1385,9 +1356,6 @@ def render_bambu_order_linking(printer, print_data, df_pedidos):
     jobs_view["Encomenda"] = jobs_view["encomenda_id"].apply(
         lambda value: order_summary.get(int(value), {}).get("Encomenda", "")
     )
-    jobs_view["Tipo de Projeto"] = jobs_view["encomenda_id"].apply(
-        lambda value: order_summary.get(int(value), {}).get("Tipo de Projeto", "")
-    )
     jobs_view["Status do Pedido"] = jobs_view["encomenda_id"].apply(
         lambda value: order_summary.get(int(value), {}).get("Status do Pedido", "")
     )
@@ -1395,7 +1363,7 @@ def render_bambu_order_linking(printer, print_data, df_pedidos):
 
     st.write("#### Impressoes vinculadas")
     st.dataframe(
-        jobs_view[["Cliente", "Encomenda", "Tipo de Projeto", "arquivo", "status", "progresso", "Tempo restante", "Status do Pedido"]],
+        jobs_view[["Cliente", "Encomenda", "arquivo", "status", "progresso", "Tempo restante", "Status do Pedido"]],
         hide_index=True,
         width="stretch",
     )
@@ -1709,7 +1677,7 @@ def render_encomenda_status_overview(df_pedidos_filtrado):
         return
     rows = []
     for _, row in df_pedidos_filtrado.iterrows():
-        item = str(row.get("Encomenda", "") or row.get("Tipo de Projeto", "")).strip()
+        item = str(row.get("Encomenda", "")).strip()
         title = f"{row.get('Cliente', '')} | {item}"
         subtitle = f"{row.get('Data', '')} | {parse_float(row.get('Peso (g)', 0)):.0f}g | ID {row.get('id', '')}"
         rows.append(
@@ -1781,7 +1749,7 @@ def render_order_detail_content(order_row):
     total_consumido = consumo_order["peso_usado_g"].apply(parse_float).sum() if not consumo_order.empty else 0
     finalizadas = len(jobs_order[jobs_order["status"].astype(str) == "Finalizada"]) if not jobs_order.empty else 0
 
-    st.write(f"### {order_row.get('Encomenda', '') or order_row.get('Tipo de Projeto', '')}")
+    st.write(f"### {order_row.get('Encomenda', '')}")
     st.caption(f"Cliente: {order_row.get('Cliente', '')} | Consultor: {order_row.get('Consultor', '')} | ID {encomenda_id}")
 
     render_detail_metrics(
@@ -1868,7 +1836,7 @@ def render_order_details_launcher(df_pedidos_filtrado, key_suffix="geral"):
 
     st.write("### Detalhes do pedido")
     opcoes_detalhes = {
-        f"{row['Cliente']} | {row['Encomenda'] or row['Tipo de Projeto']} | ID {row['id']}": row
+        f"{row['Cliente']} | {row['Encomenda']} | ID {row['id']}": row
         for _, row in df_pedidos_filtrado.iterrows()
     }
     col_select, col_button = st.columns([2, 1])
@@ -1926,12 +1894,6 @@ def render_prontuario_editor(df_pedidos_filtrado, key_suffix):
             "Forma de Pagamento": st.column_config.SelectboxColumn(
                 "Forma de pag.",
                 options=FORMA_PAGAMENTO_OPTIONS,
-                width="small",
-                required=True,
-            ),
-            "Tipo de Projeto": st.column_config.SelectboxColumn(
-                "Projeto",
-                options=LISTA_PROJETOS,
                 width="small",
                 required=True,
             ),
@@ -2152,13 +2114,11 @@ def render_encomendas(df_pedidos, df_produtos=None):
                     key=f"nome_item_encomenda_{produto_key_suffix}",
                 )
 
-            col_consultor, col_quantidade, col_projeto = st.columns([0.9, 0.55, 1])
+            col_consultor, col_quantidade = st.columns([1.35, 0.65])
             with col_consultor:
                 consultor = st.selectbox("Consultor", CONSULTORES)
             with col_quantidade:
                 quantidade = st.number_input("Qtde", min_value=1, step=1, value=1)
-            with col_projeto:
-                tipo_projeto = st.selectbox("Tipo de Projeto", LISTA_PROJETOS)
 
             col_data, col_forma = st.columns(2)
             with col_data:
@@ -2227,7 +2187,7 @@ def render_encomendas(df_pedidos, df_produtos=None):
                         "data_solicitacao": data_br,
                         "data_pagamento": data_pagamento.strip(),
                         "forma_pagamento": forma_pagamento,
-                        "tipo_projeto": tipo_projeto,
+                        "tipo_projeto": "Outros",
                         "peso_g": peso_total,
                         "custo_rs": custo_calc,
                         "preco_venda_rs": preco_calc,
@@ -2264,7 +2224,6 @@ def render_encomendas(df_pedidos, df_produtos=None):
                 "Data",
                 "Data de Pagamento",
                 "Forma de Pagamento",
-                "Tipo de Projeto",
                 "Status",
                 "Prioridade",
             ]
