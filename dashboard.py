@@ -516,10 +516,11 @@ def format_brl_label(value):
     return format_brl(value).replace("$", r"\$")
 
 
-def outros_custos_input(label="Outros custos (R$)", key_prefix="outros_custos", help_text=None):
+def outros_custos_input(label="Outros custos (R$)", key_prefix="outros_custos", help_text=None, default_value=0.0):
     valor_manual = st.number_input(
         label,
         min_value=0.0,
+        value=float(default_value or 0.0),
         step=1.0,
         format="%.2f",
         help=help_text,
@@ -2096,18 +2097,60 @@ def render_bambu_lab(df_pedidos):
                 st.error(message)
 
 
-def render_encomendas(df_pedidos):
+def render_encomendas(df_pedidos, df_produtos=None):
     st.markdown("<h2 style='color: #ffcc00;'>📋 Gestão de Encomendas Ativas</h2>", unsafe_allow_html=True)
     col_form, col_tab = st.columns([0.6, 2.4])
 
     with col_form:
         st.write("### ➕ Nova Encomenda")
+        produto_selecionado = None
+        produto_key_suffix = "manual"
+        nome_item_padrao = ""
+        peso_padrao = 0
+        outros_custos_padrao = 0.0
+        valor_produto_padrao = 0.0
+
+        if df_produtos is not None and not df_produtos.empty:
+            opcoes_produtos = ["Preencher manualmente"]
+            produtos_por_opcao = {}
+            for _, produto_row in df_produtos.iterrows():
+                produto_id = produto_row.get("id")
+                produto_nome = str(produto_row.get("Produto", "") or "").strip()
+                if not produto_nome:
+                    continue
+                peso_produto = parse_float(produto_row.get("Peso (g)", 0))
+                valor_produto_lista = parse_float(produto_row.get("Valor (R$)", 0))
+                opcao = f"{produto_nome} | {int(round(peso_produto))}g | {format_brl(valor_produto_lista)}"
+                if pd.notna(produto_id) and str(produto_id).strip():
+                    opcao = f"{opcao} | ID {produto_id}"
+                opcoes_produtos.append(opcao)
+                produtos_por_opcao[opcao] = produto_row
+
+            produto_escolhido = st.selectbox(
+                "Produto cadastrado",
+                opcoes_produtos,
+                key="produto_cadastrado_nova_encomenda",
+            )
+            produto_selecionado = produtos_por_opcao.get(produto_escolhido)
+
+        if produto_selecionado is not None:
+            produto_key_suffix = safe_widget_key(str(produto_selecionado.get("id", "produto")))
+            nome_item_padrao = str(produto_selecionado.get("Produto", "") or "").strip()
+            peso_padrao = int(round(parse_float(produto_selecionado.get("Peso (g)", 0))))
+            outros_custos_padrao = parse_float(produto_selecionado.get("Outros custos (R$)", 0))
+            valor_produto_padrao = parse_float(produto_selecionado.get("Valor (R$)", 0))
+
         with st.form("form_encomenda", clear_on_submit=True):
             col_cliente, col_item = st.columns([1.05, 1])
             with col_cliente:
                 cliente = st.text_input("Nome do Cliente")
             with col_item:
-                nome_item = st.text_input("Encomenda", placeholder="Ex: Chaveiro do Cruzeiro")
+                nome_item = st.text_input(
+                    "Encomenda",
+                    value=nome_item_padrao,
+                    placeholder="Ex: Chaveiro do Cruzeiro",
+                    key=f"nome_item_encomenda_{produto_key_suffix}",
+                )
 
             col_consultor, col_quantidade, col_projeto = st.columns([0.9, 0.55, 1])
             with col_consultor:
@@ -2137,13 +2180,28 @@ def render_encomendas(df_pedidos):
 
             col_peso, col_valor, col_outros = st.columns(3)
             with col_peso:
-                peso_gramas = st.number_input("Peso/Un. (g)", min_value=0, step=1, value=0, format="%d")
+                peso_gramas = st.number_input(
+                    "Peso/Un. (g)",
+                    min_value=0,
+                    step=1,
+                    value=peso_padrao,
+                    format="%d",
+                    key=f"peso_encomenda_{produto_key_suffix}",
+                )
             with col_valor:
-                valor_produto = st.number_input("Valor Produto (R$)", min_value=0.0, step=1.0, format="%.2f")
+                valor_produto = st.number_input(
+                    "Valor Produto (R$)",
+                    min_value=0.0,
+                    value=float(valor_produto_padrao),
+                    step=1.0,
+                    format="%.2f",
+                    key=f"valor_encomenda_{produto_key_suffix}",
+                )
             with col_outros:
                 outros_custos = outros_custos_input(
-                    key_prefix="encomenda_outros_custos",
+                    key_prefix=f"encomenda_outros_custos_{produto_key_suffix}",
                     help_text="Ex: coleira, pingente, outros materiais.",
+                    default_value=outros_custos_padrao,
                 )
 
             col_prioridade, col_status = st.columns(2)
@@ -2540,7 +2598,7 @@ for nav_col, (panel_key, panel_label) in zip(nav_cols, PANEL_OPTIONS.items()):
 opcao_painel = st.session_state["opcao_painel"]
 
 if opcao_painel == "producao":
-    render_encomendas(df_pedidos)
+    render_encomendas(df_pedidos, df_produtos)
 elif opcao_painel == "varejo":
     render_varejo(df_varejo)
 elif opcao_painel == "desempenho":
