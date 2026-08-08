@@ -1025,7 +1025,7 @@ def render_bambu_status_details(print_data):
         "Erro": print_payload.get("print_error", 0),
         "SD Card": "Sim" if print_payload.get("sdcard") else "Nao",
     }
-    st.dataframe(pd.DataFrame([details]), hide_index=True, use_container_width=True)
+    st.dataframe(pd.DataFrame([details]), hide_index=True, width="stretch")
 
 
 def render_color_table(rows, headers):
@@ -1158,7 +1158,7 @@ def render_bambu_order_linking(printer, print_data, df_pedidos):
     else:
         opcoes_pedidos = {pedido_label(row): row for _, row in open_orders.iterrows()}
         pedido_escolhido = st.selectbox("Vincular arquivo atual a encomenda", list(opcoes_pedidos.keys()))
-        if st.button("Vincular impressao atual", use_container_width=True):
+        if st.button("Vincular impressao atual", width="stretch"):
             pedido = opcoes_pedidos[pedido_escolhido]
             duplicado = False
             if not jobs.empty:
@@ -1200,7 +1200,7 @@ def render_bambu_order_linking(printer, print_data, df_pedidos):
     st.dataframe(
         jobs_view[["Cliente", "Encomenda", "Tipo de Projeto", "arquivo", "status", "progresso", "Tempo restante", "Status do Pedido"]],
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
     )
 
     opcoes_jobs = {
@@ -1230,14 +1230,14 @@ def render_bambu_order_linking(printer, print_data, df_pedidos):
 
     col_finalizar, col_concluir = st.columns(2)
     with col_finalizar:
-        if st.button("Marcar impressao como finalizada", use_container_width=True):
+        if st.button("Marcar impressao como finalizada", width="stretch"):
             if finish_bambu_print_job(job["id"]):
                 st.success("Impressao finalizada.")
                 st.rerun()
             else:
                 st.error("Nao consegui finalizar essa impressao.")
     with col_concluir:
-        if st.button("Marcar pedido como concluido", use_container_width=True):
+        if st.button("Marcar pedido como concluido", width="stretch"):
             if update_encomenda_status(job["encomenda_id"], "Concluído"):
                 st.success("Pedido marcado como concluido.")
                 st.rerun()
@@ -1650,7 +1650,7 @@ def render_order_detail_content(order_row):
                 "Data": row.get("created_at", ""),
             }
         )
-    st.dataframe(pd.DataFrame(consumo_rows), hide_index=True, use_container_width=True)
+    st.dataframe(pd.DataFrame(consumo_rows), hide_index=True, width="stretch")
 
 
 def open_order_details_dialog(order_row):
@@ -1683,7 +1683,7 @@ def render_order_details_launcher(df_pedidos_filtrado, key_suffix="geral"):
         )
     with col_button:
         st.write("")
-        if st.button("Abrir detalhes", use_container_width=True, key=f"abrir_detalhes_{key_suffix}"):
+        if st.button("Abrir detalhes", width="stretch", key=f"abrir_detalhes_{key_suffix}"):
             open_order_details_dialog(opcoes_detalhes[detalhe_escolhido])
 
     fallback_id = st.session_state.get("detalhes_encomenda_id")
@@ -1789,12 +1789,12 @@ def render_prontuario_editor(df_pedidos_filtrado, key_suffix):
         ],
         height=altura_tabela,
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         key=f"prontuario_editor_{key_suffix}",
     )
     if st.button(
         "Salvar alteraÃ§Ãµes do prontuÃ¡rio",
-        use_container_width=True,
+        width="stretch",
         key=f"salvar_prontuario_{key_suffix}",
     ):
         tabela_para_salvar = tabela_editavel.drop(columns=["Apagar"], errors="ignore")
@@ -1806,7 +1806,7 @@ def render_prontuario_editor(df_pedidos_filtrado, key_suffix):
         .astype(int)
         .tolist()
     )
-    if st.button("Apagar selecionados", use_container_width=True, key=f"apagar_prontuario_{key_suffix}"):
+    if st.button("Apagar selecionados", width="stretch", key=f"apagar_prontuario_{key_suffix}"):
         if not ids_para_apagar:
             st.warning("Marque pelo menos uma encomenda na coluna Apagar.")
         else:
@@ -1839,7 +1839,7 @@ def render_bambu_lab(df_pedidos):
             gateway_label = "Direta"
         st.write(f"Conexao: {gateway_label}")
 
-        if st.button("Atualizar impressora", use_container_width=True):
+        if st.button("Atualizar impressora", width="stretch"):
             with st.spinner("Consultando impressora..."):
                 if gateway_config["enabled"]:
                     st.session_state["bambu_status"] = read_bambu_status_via_gateway(printer["name"])
@@ -1866,7 +1866,7 @@ def render_bambu_lab(df_pedidos):
                         ]
                     ),
                     hide_index=True,
-                    use_container_width=True,
+                    width="stretch",
                 )
                 render_bambu_alerts(data)
                 render_bambu_status_details(data)
@@ -1878,7 +1878,7 @@ def render_bambu_lab(df_pedidos):
 
     with col_actions:
         st.write("### Controles")
-        if st.button("Ligar luz", use_container_width=True):
+        if st.button("Ligar luz", width="stretch"):
             with st.spinner("Enviando comando..."):
                 if gateway_config["enabled"]:
                     ok, message = send_bambu_light_command_via_gateway("on", printer["name"])
@@ -1888,7 +1888,7 @@ def render_bambu_lab(df_pedidos):
                 st.success(message)
             else:
                 st.error(message)
-        if st.button("Desligar luz", use_container_width=True):
+        if st.button("Desligar luz", width="stretch"):
             with st.spinner("Enviando comando..."):
                 if gateway_config["enabled"]:
                     ok, message = send_bambu_light_command_via_gateway("off", printer["name"])
@@ -2110,7 +2110,7 @@ def render_varejo(df_varejo):
                         "Preço Unit. Venda (R$)",
                     ]
                 ],
-                use_container_width=True,
+                width="stretch",
             )
         else:
             st.info("Nenhum produto em comércio cadastrado ainda.")
@@ -2131,7 +2131,7 @@ def render_desempenho_lojas(df_varejo):
         .sort_values("Total Faturamento Real", ascending=False)
     )
     desempenho = format_currency_columns(desempenho, ["Total Faturamento Real", "Lucro Gerado (R$)"])
-    st.dataframe(desempenho, use_container_width=True)
+    st.dataframe(desempenho, width="stretch")
 
 
 render_header()
@@ -2155,7 +2155,7 @@ nav_cols = st.columns(4)
 for nav_col, (panel_key, panel_label) in zip(nav_cols, PANEL_OPTIONS.items()):
     with nav_col:
         label = f"Selecionado - {panel_label}" if st.session_state["opcao_painel"] == panel_key else panel_label
-        if st.button(label, key=f"nav_{panel_key}", use_container_width=True):
+        if st.button(label, key=f"nav_{panel_key}", width="stretch"):
             st.session_state["opcao_painel"] = panel_key
             st.rerun()
 
