@@ -154,7 +154,7 @@ design_premium = """
 <style>
     .stApp { background-color: #121212; color: #ffffff !important; }
     .block-container {
-        padding-top: 0.35rem !important;
+        padding-top: 3.5rem !important;
         padding-left: 0.35rem !important;
         padding-right: 0.35rem !important;
         max-width: 100% !important;
