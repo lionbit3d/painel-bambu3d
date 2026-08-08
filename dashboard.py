@@ -154,14 +154,25 @@ design_premium = """
 <style>
     .stApp { background-color: #121212; color: #ffffff !important; }
     .block-container {
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
+        padding-top: 0.35rem !important;
+        padding-left: 0.35rem !important;
+        padding-right: 0.35rem !important;
         max-width: 100% !important;
     }
+    [data-testid="stVerticalBlock"] {
+        gap: 0.55rem !important;
+    }
     h1, h2, h3, p, span, label, th, td { color: #ffffff !important; }
-    div[data-testid="stMetric"] { background-color: #1e1e1e; border: 2px solid #ffcc00; border-radius: 10px; padding: 15px; }
-    div[data-testid="stMetricLabel"] { color: #ffcc00 !important; font-weight: bold; font-size: 16px; }
-    div[data-testid="stMetricValue"] { color: #ffffff !important; font-weight: bold; }
+    h2, h3 {
+        margin-top: 0.25rem !important;
+        margin-bottom: 0.4rem !important;
+    }
+    hr {
+        margin: 0.25rem 0 0.35rem 0 !important;
+    }
+    div[data-testid="stMetric"] { background-color: #1e1e1e; border: 2px solid #ffcc00; border-radius: 8px; padding: 8px 10px; }
+    div[data-testid="stMetricLabel"] { color: #ffcc00 !important; font-weight: bold; font-size: 13px; }
+    div[data-testid="stMetricValue"] { color: #ffffff !important; font-weight: bold; font-size: 1.15rem !important; }
     div[data-testid="stExpander"],
     details[data-testid="stExpander"] {
         background-color: #181818 !important;
@@ -227,9 +238,9 @@ design_premium = """
         color: #000000 !important;
         fill: #000000 !important;
     }
-    .stFormSubmitButton > button { background-color: #ffcc00 !important; color: #000000 !important; font-weight: bold !important; border: 2px solid #ffcc00 !important; border-radius: 5px !important; width: 100% !important; padding: 10px 0px !important; }
+    .stFormSubmitButton > button { background-color: #ffcc00 !important; color: #000000 !important; font-weight: bold !important; border: 2px solid #ffcc00 !important; border-radius: 5px !important; width: 100% !important; padding: 7px 0px !important; min-height: 2.25rem !important; }
     .stFormSubmitButton > button:hover { background-color: #e6b800 !important; color: #000000 !important; border-color: #e6b800 !important; }
-    .stButton > button { background-color: #ffcc00 !important; color: #000000 !important; font-weight: bold !important; border: 2px solid #ffcc00 !important; border-radius: 5px !important; width: 100% !important; }
+    .stButton > button { background-color: #ffcc00 !important; color: #000000 !important; font-weight: bold !important; border: 2px solid #ffcc00 !important; border-radius: 5px !important; width: 100% !important; min-height: 2.25rem !important; padding-top: 0.28rem !important; padding-bottom: 0.28rem !important; }
     .stButton > button:hover { background-color: #e6b800 !important; color: #000000 !important; border-color: #e6b800 !important; }
     .stButton > button:focus,
     .stButton > button:focus-visible,
@@ -765,21 +776,21 @@ def load_produtos():
 
 
 def render_header():
-    col_logo, col_titulo = st.columns([0.08, 0.92])
+    col_logo, col_titulo = st.columns([0.055, 0.945], gap="small")
     with col_logo:
         try:
-            st.image("logo.png", width=58)
+            st.image("logo.png", width=46)
         except Exception:
             st.write("🦁 [Logo]")
     with col_titulo:
         st.markdown(
             """
-            <div style="display:flex; align-items:center; gap:14px; min-height:58px; white-space:nowrap;">
-                <span style="color:#ffcc00; font-family:sans-serif; font-size:30px; font-weight:800;">
+            <div style="display:flex; align-items:center; gap:9px; min-height:44px; white-space:nowrap;">
+                <span style="color:#ffcc00; font-family:sans-serif; font-size:26px; font-weight:800;">
                     LionBit 3D Studio
                 </span>
-                <span style="width:1px; height:32px; background:#ffcc00; opacity:0.85;"></span>
-                <span style="color:#ffffff; font-family:sans-serif; font-size:20px; font-weight:300;">
+                <span style="width:1px; height:26px; background:#ffcc00; opacity:0.85;"></span>
+                <span style="color:#ffffff; font-family:sans-serif; font-size:17px; font-weight:300;">
                     Painel Integrado de Manufatura e Gestão de Vendas
                 </span>
             </div>
@@ -820,7 +831,7 @@ def render_global_metrics(df_pedidos, df_varejo):
     faturamento_global = faturamento_pedidos + faturamento_varejo
     lucro_global = faturamento_global - custo_global
 
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5 = st.columns(5, gap="small")
     col1.metric("📦 Total de Pedidos Ativos", len(df_pedidos) + len(df_varejo))
     col2.metric("🧾 Vendas Ativas", quantidade_vendas_ativas)
     col3.metric("📉 Custo Total de Material", format_brl(custo_global))
@@ -2059,7 +2070,7 @@ def render_bambu_lab(df_pedidos):
 
 def render_encomendas(df_pedidos, df_produtos=None):
     st.markdown("<h2 style='color: #ffcc00;'>📋 Gestão de Encomendas Ativas</h2>", unsafe_allow_html=True)
-    col_form, col_tab = st.columns([0.6, 2.4])
+    col_form, col_tab = st.columns([0.72, 2.28], gap="small")
 
     with col_form:
         st.write("### ➕ Nova Encomenda")
@@ -2200,7 +2211,7 @@ def render_encomendas(df_pedidos, df_produtos=None):
                     st.warning("Preencha o cliente, um peso maior que zero e o valor do produto.")
 
     with col_tab:
-        col_titulo_prontuario, col_busca_prontuario = st.columns([2, 1])
+        col_titulo_prontuario, col_busca_prontuario = st.columns([2.35, 0.65], gap="small")
         with col_titulo_prontuario:
             st.write("### 🔍 Cronograma Prontuário")
         with col_busca_prontuario:
@@ -2544,7 +2555,7 @@ PANEL_OPTIONS = {
 }
 st.session_state.setdefault("opcao_painel", "producao")
 
-nav_cols = st.columns(5)
+nav_cols = st.columns(5, gap="small")
 for nav_col, (panel_key, panel_label) in zip(nav_cols, PANEL_OPTIONS.items()):
     with nav_col:
         label = f"Selecionado - {panel_label}" if st.session_state["opcao_painel"] == panel_key else panel_label
