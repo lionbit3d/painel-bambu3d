@@ -434,6 +434,10 @@ def format_brl(value):
         return "R$ 0,00"
 
 
+def format_brl_label(value):
+    return format_brl(value).replace("$", r"\$")
+
+
 def normalize_hex_color(value):
     cleaned = str(value or "").strip().replace("#", "")
     if re.fullmatch(r"[0-9a-fA-F]{8}", cleaned):
@@ -2049,9 +2053,9 @@ def render_encomendas(df_pedidos):
                 df_mes = df_mes.drop(columns=["_mes_ordem", "_mes_label", "_data_ordem"], errors="ignore")
                 titulo_mes = (
                     f"{mes_label} | Ped: {total_mes} | Vendas: {quantidade_mes} | "
-                    f"Custo: {format_brl(custo_mes)} | "
-                    f"Fat. bruto: {format_brl(faturamento_mes)} | "
-                    f"Lucro liq.: {format_brl(lucro_mes)}"
+                    f"Custo: {format_brl_label(custo_mes)} | "
+                    f"Fat. bruto: {format_brl_label(faturamento_mes)} | "
+                    f"Lucro liq.: {format_brl_label(lucro_mes)}"
                 )
                 with st.expander(titulo_mes, expanded=True):
                     render_prontuario_editor(df_mes, safe_widget_key(f"{mes_ordem}_{mes_label}"))
