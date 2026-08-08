@@ -2047,12 +2047,13 @@ def render_encomendas(df_pedidos):
                 lucro_mes = faturamento_mes - custo_mes
                 df_mes = df_mes.sort_values(["_data_ordem", "id"], ascending=[True, True])
                 df_mes = df_mes.drop(columns=["_mes_ordem", "_mes_label", "_data_ordem"], errors="ignore")
-                titulo_mes = f"{mes_label} | {total_mes} pedido(s) | {quantidade_mes} venda(s)"
+                titulo_mes = (
+                    f"{mes_label} | Ped: {total_mes} | Vendas: {quantidade_mes} | "
+                    f"Custo: {format_brl(custo_mes)} | "
+                    f"Fat. bruto: {format_brl(faturamento_mes)} | "
+                    f"Lucro liq.: {format_brl(lucro_mes)}"
+                )
                 with st.expander(titulo_mes, expanded=True):
-                    col_custo_mes, col_faturamento_mes, col_lucro_mes = st.columns(3)
-                    col_custo_mes.metric("Custo mensal", format_brl(custo_mes))
-                    col_faturamento_mes.metric("Faturamento bruto mensal", format_brl(faturamento_mes))
-                    col_lucro_mes.metric("Lucro líquido mensal", format_brl(lucro_mes))
                     render_prontuario_editor(df_mes, safe_widget_key(f"{mes_ordem}_{mes_label}"))
 
         if df_pedidos_filtrado.empty:
