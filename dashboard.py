@@ -2112,11 +2112,11 @@ def render_encomendas(df_pedidos, df_produtos=None):
                     key=f"nome_item_encomenda_{produto_key_suffix}",
                 )
 
-            col_consultor, col_quantidade = st.columns([1.35, 0.65])
+            col_consultor, col_quantidade = st.columns([1.2, 0.8])
             with col_consultor:
                 consultor = st.selectbox("Consultor", CONSULTORES)
             with col_quantidade:
-                quantidade = st.number_input("Qtde", min_value=1, step=1, value=1)
+                quantidade = st.number_input("Qtde", min_value=1, step=1, value=1, format="%d")
 
             col_data, col_forma = st.columns(2)
             with col_data:
