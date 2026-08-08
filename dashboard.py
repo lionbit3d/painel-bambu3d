@@ -518,6 +518,11 @@ def outros_custos_input(label="Outros custos (R$)", key_prefix="outros_custos", 
     return round(valor_manual + valor_opcoes, 2)
 
 
+def ajustar_quantidade_nova_encomenda(delta):
+    quantidade_atual = int(st.session_state.get("nova_encomenda_quantidade", 1) or 1)
+    st.session_state["nova_encomenda_quantidade"] = max(1, quantidade_atual + delta)
+
+
 def normalize_hex_color(value):
     cleaned = str(value or "").strip().replace("#", "")
     if re.fullmatch(r"[0-9a-fA-F]{8}", cleaned):
@@ -2100,6 +2105,8 @@ def render_encomendas(df_pedidos, df_produtos=None):
             outros_custos_padrao = parse_float(produto_selecionado.get("Outros custos (R$)", 0))
             valor_produto_padrao = parse_float(produto_selecionado.get("Valor (R$)", 0))
 
+        st.session_state.setdefault("nova_encomenda_quantidade", 1)
+
         with st.form("form_encomenda", clear_on_submit=True):
             col_cliente, col_item = st.columns([1.05, 1])
             with col_cliente:
@@ -2116,7 +2123,32 @@ def render_encomendas(df_pedidos, df_produtos=None):
             with col_consultor:
                 consultor = st.selectbox("Consultor", CONSULTORES)
             with col_quantidade:
-                quantidade = st.number_input("Qtde", min_value=1, step=1, value=1)
+                st.markdown("Qtde")
+                col_qtd_menos, col_qtd_valor, col_qtd_mais = st.columns([0.26, 0.48, 0.26])
+                with col_qtd_menos:
+                    st.form_submit_button(
+                        "-",
+                        key="diminuir_qtd_nova_encomenda",
+                        width="stretch",
+                        on_click=ajustar_quantidade_nova_encomenda,
+                        args=(-1,),
+                    )
+                with col_qtd_valor:
+                    quantidade = st.number_input(
+                        "Qtde",
+                        min_value=1,
+                        step=1,
+                        key="nova_encomenda_quantidade",
+                        label_visibility="collapsed",
+                    )
+                with col_qtd_mais:
+                    st.form_submit_button(
+                        "+",
+                        key="aumentar_qtd_nova_encomenda",
+                        width="stretch",
+                        on_click=ajustar_quantidade_nova_encomenda,
+                        args=(1,),
+                    )
 
             col_data, col_forma = st.columns(2)
             with col_data:
