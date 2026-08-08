@@ -167,6 +167,38 @@ design_premium = """
     div[data-testid="stMetric"] { background-color: #1e1e1e; border: 2px solid #ffcc00; border-radius: 10px; padding: 15px; }
     div[data-testid="stMetricLabel"] { color: #ffcc00 !important; font-weight: bold; font-size: 16px; }
     div[data-testid="stMetricValue"] { color: #ffffff !important; font-weight: bold; }
+    div[data-testid="stExpander"],
+    details[data-testid="stExpander"] {
+        background-color: #181818 !important;
+        border: 1px solid #3a3a3a !important;
+    }
+    div[data-testid="stExpander"] summary,
+    details[data-testid="stExpander"] summary,
+    details[data-testid="stExpander"][open] summary {
+        background-color: #1e1e1e !important;
+        color: #ffcc00 !important;
+        border: 1px solid #ffcc00 !important;
+        border-radius: 6px !important;
+        font-weight: bold !important;
+    }
+    div[data-testid="stExpander"] summary:hover,
+    details[data-testid="stExpander"] summary:hover,
+    details[data-testid="stExpander"][open] summary:hover {
+        background-color: #2a0f0f !important;
+        color: #ffcc00 !important;
+    }
+    div[data-testid="stExpander"] summary *,
+    details[data-testid="stExpander"] summary *,
+    details[data-testid="stExpander"][open] summary * {
+        color: #ffcc00 !important;
+        fill: #ffcc00 !important;
+        stroke: #ffcc00 !important;
+    }
+    div[data-testid="stExpanderDetails"],
+    details[data-testid="stExpander"] > div {
+        background-color: #121212 !important;
+        color: #ffffff !important;
+    }
     button[data-baseweb="tab"] { color: #aaaaaa !important; font-size: 16px; }
     button[data-baseweb="tab"][aria-selected="true"],
     button[aria-selected="true"] {
