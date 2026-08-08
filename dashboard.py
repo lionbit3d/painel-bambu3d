@@ -2042,9 +2042,17 @@ def render_encomendas(df_pedidos):
                 mes_label = str(df_mes["_mes_label"].iloc[0])
                 quantidade_mes = int(pd.to_numeric(df_mes["Quantidade"], errors="coerce").fillna(0).sum())
                 total_mes = len(df_mes)
+                custo_mes = df_mes["Custo (R$)"].apply(parse_float).sum()
+                faturamento_mes = df_mes["Preço Venda (R$)"].apply(parse_float).sum()
+                lucro_mes = faturamento_mes - custo_mes
                 df_mes = df_mes.sort_values(["_data_ordem", "id"], ascending=[True, True])
                 df_mes = df_mes.drop(columns=["_mes_ordem", "_mes_label", "_data_ordem"], errors="ignore")
-                titulo_mes = f"{mes_label} | {total_mes} pedido(s) | {quantidade_mes} venda(s)"
+                titulo_mes = (
+                    f"{mes_label} | {total_mes} pedido(s) | {quantidade_mes} venda(s) | "
+                    f"Custo: {format_brl(custo_mes)} | "
+                    f"Faturamento bruto: {format_brl(faturamento_mes)} | "
+                    f"Lucro líquido: {format_brl(lucro_mes)}"
+                )
                 with st.expander(titulo_mes, expanded=True):
                     render_prontuario_editor(df_mes, safe_widget_key(f"{mes_ordem}_{mes_label}"))
 
