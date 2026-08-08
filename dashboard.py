@@ -956,6 +956,65 @@ def delete_encomenda(encomenda_id):
     return response.status_code in [200, 204]
 
 
+def sync_produto_changes(df_original, df_editado):
+    if "id" not in df_original.columns or "id" not in df_editado.columns:
+        return
+
+    alterou_registro = False
+    falhas = []
+    for _, linha_editada in df_editado.iterrows():
+        produto_id = linha_editada.get("id")
+        registro = df_original[df_original["id"] == produto_id]
+        if registro.empty:
+            continue
+
+        linha_original = registro.iloc[0]
+        produto_nome = str(linha_editada.get("Produto", "") or "").strip()
+        peso_produto = max(0.0, parse_float(linha_editada.get("Peso (g)", 0)))
+        outros_custos = max(0.0, parse_float(linha_editada.get("Outros custos (R$)", 0)))
+        valor_cobrado = max(0.0, parse_float(linha_editada.get("Valor cobrado (R$)", 0)))
+
+        mudou = any(
+            [
+                produto_nome != str(linha_original.get("Produto", "") or "").strip(),
+                round(peso_produto, 2) != round(parse_float(linha_original.get("Peso (g)", 0)), 2),
+                round(outros_custos, 2) != round(parse_float(linha_original.get("Outros custos (R$)", 0)), 2),
+                round(valor_cobrado, 2) != round(parse_float(linha_original.get("Valor (R$)", 0)), 2),
+            ]
+        )
+        if not mudou:
+            continue
+
+        payload = {
+            "nome_produto": produto_nome,
+            "peso_g": round(peso_produto, 2),
+            "outros_custos_rs": round(outros_custos, 2),
+            "valor_rs": round(valor_cobrado, 2),
+        }
+        response = requests.patch(
+            f"{SUPABASE_URL}/rest/v1/produtos?id=eq.{produto_id}",
+            headers=HEADERS,
+            json=payload,
+        )
+        if response.status_code in [200, 204]:
+            alterou_registro = True
+        else:
+            falhas.append(produto_nome or produto_id)
+
+    if falhas:
+        st.error("Nao consegui salvar um ou mais produtos selecionados.")
+    elif alterou_registro:
+        st.success("Produto(s) atualizado(s) no banco de dados!")
+        st.rerun()
+    else:
+        st.info("Nenhuma alteracao para salvar.")
+
+
+def delete_produto(produto_id):
+    response = requests.delete(f"{SUPABASE_URL}/rest/v1/produtos?id=eq.{produto_id}", headers=HEADERS)
+    return response.status_code in [200, 204]
+
+
 def update_encomenda_status(encomenda_id, status):
     response = requests.patch(
         f"{SUPABASE_URL}/rest/v1/encomendas?id=eq.{encomenda_id}",
@@ -2226,7 +2285,18 @@ on public.produtos for insert
 to anon, authenticated
 with check (true);
 
-grant select, insert on table public.produtos to anon, authenticated;
+create policy "Permitir editar produtos"
+on public.produtos for update
+to anon, authenticated
+using (true)
+with check (true);
+
+create policy "Permitir excluir produtos"
+on public.produtos for delete
+to anon, authenticated
+using (true);
+
+grant select, insert, update, delete on table public.produtos to anon, authenticated;
 grant usage, select on sequence public.produtos_id_seq to anon, authenticated;
                     """.strip(),
                     language="sql",
@@ -2236,7 +2306,7 @@ grant usage, select on sequence public.produtos_id_seq to anon, authenticated;
             nome_produto = st.text_input("Nome do Produto")
             peso_produto = st.number_input("Peso (g)", min_value=0, step=1, value=0, format="%d")
             outros_custos = outros_custos_input(key_prefix="produto_outros_custos")
-            valor_produto = st.number_input("Valor (R$)", min_value=0.0, step=1.0, format="%.2f")
+            valor_produto = st.number_input("Valor cobrado (R$)", min_value=0.0, step=1.0, format="%.2f")
 
             if st.form_submit_button("Salvar Produto"):
                 if not nome_produto.strip():
@@ -2260,15 +2330,100 @@ grant usage, select on sequence public.produtos_id_seq to anon, authenticated;
     with col_lista_produtos:
         st.write("### Produtos cadastrados")
         if not df_produtos.empty:
-            df_produtos_exibicao = format_currency_columns(
-                df_produtos,
-                ["Outros custos (R$)", "Valor (R$)"],
+            df_produtos_editor = df_produtos.copy()
+            df_produtos_editor["Selecionar"] = False
+            df_produtos_editor["Custo Filamento (R$)"] = df_produtos_editor["Peso (g)"].apply(parse_float) * 0.15
+            df_produtos_editor["Valor cobrado (R$)"] = df_produtos_editor["Valor (R$)"].apply(parse_float)
+            df_produtos_editor["Custo real (R$)"] = (
+                df_produtos_editor["Custo Filamento (R$)"]
+                + df_produtos_editor["Outros custos (R$)"].apply(parse_float)
             )
-            st.dataframe(
-                df_produtos_exibicao[["Produto", "Peso (g)", "Outros custos (R$)", "Valor (R$)"]],
+            df_produtos_editor["Lucro Real (R$)"] = (
+                df_produtos_editor["Valor cobrado (R$)"] - df_produtos_editor["Custo real (R$)"]
+            )
+            colunas_produtos = [
+                "Selecionar",
+                "id",
+                "Produto",
+                "Peso (g)",
+                "Custo Filamento (R$)",
+                "Outros custos (R$)",
+                "Valor cobrado (R$)",
+                "Custo real (R$)",
+                "Lucro Real (R$)",
+            ]
+            tabela_produtos = st.data_editor(
+                df_produtos_editor[colunas_produtos],
+                column_config={
+                    "Selecionar": st.column_config.CheckboxColumn("Sel.", width=58, default=False),
+                    "id": None,
+                    "Produto": st.column_config.TextColumn("Nome do Produto", width="medium", required=True),
+                    "Peso (g)": st.column_config.NumberColumn(
+                        "Peso",
+                        min_value=0.0,
+                        step=1.0,
+                        width="small",
+                        required=True,
+                    ),
+                    "Custo Filamento (R$)": st.column_config.NumberColumn(
+                        "Custo Filamento",
+                        format="R$ %.2f",
+                        width="small",
+                    ),
+                    "Outros custos (R$)": st.column_config.NumberColumn(
+                        "Outros custos",
+                        min_value=0.0,
+                        step=0.01,
+                        format="R$ %.2f",
+                        width="small",
+                        required=True,
+                    ),
+                    "Valor cobrado (R$)": st.column_config.NumberColumn(
+                        "Valor cobrado",
+                        min_value=0.0,
+                        step=0.01,
+                        format="R$ %.2f",
+                        width="small",
+                        required=True,
+                    ),
+                    "Custo real (R$)": st.column_config.NumberColumn(
+                        "Custo real",
+                        format="R$ %.2f",
+                        width="small",
+                    ),
+                    "Lucro Real (R$)": st.column_config.NumberColumn(
+                        "Lucro Real",
+                        format="R$ %.2f",
+                        width="small",
+                    ),
+                },
+                disabled=["Custo Filamento (R$)", "Custo real (R$)", "Lucro Real (R$)"],
                 hide_index=True,
                 width="stretch",
+                height=min(620, max(260, 88 + (len(df_produtos_editor) * 36))),
+                key="produtos_editor",
             )
+
+            if st.button("Salvar Alterações", width="stretch", key="salvar_produtos"):
+                tabela_para_salvar = tabela_produtos.drop(columns=["Selecionar"], errors="ignore")
+                sync_produto_changes(df_produtos, tabela_para_salvar)
+
+            ids_produtos_para_apagar = (
+                pd.to_numeric(tabela_produtos.loc[tabela_produtos["Selecionar"] == True, "id"], errors="coerce")
+                .dropna()
+                .astype(int)
+                .tolist()
+            )
+            if st.button("Excluir selecionados", width="stretch", key="excluir_produtos"):
+                if not ids_produtos_para_apagar:
+                    st.warning("Marque pelo menos um produto na coluna Sel.")
+                else:
+                    falhas = [produto_id for produto_id in ids_produtos_para_apagar if not delete_produto(produto_id)]
+                    if falhas:
+                        st.error("Nao consegui excluir um ou mais produtos selecionados.")
+                    else:
+                        st.success(f"{len(ids_produtos_para_apagar)} produto(s) excluido(s) do banco de dados!")
+                        st.rerun()
         else:
             st.info("Nenhum produto cadastrado ainda.")
 
