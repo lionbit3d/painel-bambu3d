@@ -1,0 +1,5 @@
+project_id = "cults-research"
+
+[functions.cults-search]
+# A dedicated Bearer token is checked inside the function before any Cults call.
+verify_jwt = false
