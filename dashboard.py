@@ -508,7 +508,7 @@ def format_brl_label(value):
     return format_brl(value).replace("$", r"\$")
 
 
-def outros_custos_input(label="Outros custos (R$)", key_prefix="outros_custos", help_text=None, default_value=0.0):
+def outros_custos_input(label="Outros custos/Un. (R$)", key_prefix="outros_custos", help_text=None, default_value=0.0):
     valor_manual = st.number_input(
         label,
         min_value=0.0,
@@ -521,7 +521,7 @@ def outros_custos_input(label="Outros custos (R$)", key_prefix="outros_custos", 
     valor_opcoes = 0.0
     for nome, valor in OUTROS_CUSTOS_OPCOES:
         marcado = st.checkbox(
-            f"{nome}: {format_brl(valor)}",
+            f"{nome}: {format_brl(valor)}/un.",
             key=f"{key_prefix}_{nome.lower().replace(' ', '_')}",
         )
         if marcado:
@@ -633,6 +633,13 @@ def calculate_order_values(peso_gramas, margem_texto):
     custo_calc = parse_float(peso_gramas) * 0.15
     preco_calc = custo_calc * margin_multiplier_from_text(margem_texto)
     return round(custo_calc, 2), round(preco_calc, 2)
+
+
+def calculate_order_cost(peso_unitario, outros_custos_unitarios, quantidade):
+    quantidade = max(1, int(parse_float(quantidade)))
+    custo_filamento_unitario = round(parse_float(peso_unitario) * 0.15, 2)
+    outros_custos_unitarios = max(0.0, parse_float(outros_custos_unitarios))
+    return round((custo_filamento_unitario + outros_custos_unitarios) * quantidade, 2)
 
 
 MESES_PT = [
@@ -2181,8 +2188,7 @@ def render_encomendas(df_pedidos, df_produtos=None):
 
             if st.form_submit_button("Salvar Encomenda"):
                 if cliente and peso_gramas > 0 and valor_produto > 0:
-                    custo_unitario = round(peso_gramas * 0.15, 2)
-                    custo_calc = (custo_unitario * int(quantidade)) + outros_custos
+                    custo_calc = calculate_order_cost(peso_gramas, outros_custos, quantidade)
                     preco_calc = valor_produto * int(quantidade)
                     peso_total = peso_gramas * int(quantidade)
                     margem_texto = format_margin_from_values(custo_calc, preco_calc)
@@ -2397,7 +2403,7 @@ grant usage, select on sequence public.produtos_id_seq to anon, authenticated;
                         width="small",
                     ),
                     "Outros custos (R$)": st.column_config.NumberColumn(
-                        "Outros custos",
+                        "Outros custos/Un.",
                         min_value=0.0,
                         step=0.01,
                         format="R$ %.2f",
