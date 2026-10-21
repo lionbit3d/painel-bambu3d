@@ -11,6 +11,7 @@ from html import escape
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 import requests
+from modules.filamentos import render_estoque_filamentos
 
 try:
     import paho.mqtt.client as mqtt
@@ -1121,7 +1122,7 @@ def update_filamento_stock(filamento_id, novo_peso):
     response = requests.patch(
         f"{SUPABASE_URL}/rest/v1/filamentos_estoque?id=eq.{filamento_id}",
         headers=HEADERS,
-        json={"peso_atual_g": round(max(parse_float(novo_peso), 0), 2)},
+        json={"peso_atual_g": round(max(parse_float(novo_peso), 0), 2), "status": "Aberto"},
     )
     return response.status_code in [200, 204]
 
@@ -2557,11 +2558,12 @@ PANEL_OPTIONS = {
     "varejo": "Estoque e Comercio Varejo",
     "desempenho": "Desempenho de Lojas",
     "produtos": "Produtos",
+    "filamentos": "Estoque de Filamentos",
     "bambu": "Bambu Lab",
 }
 st.session_state.setdefault("opcao_painel", "producao")
 
-nav_cols = st.columns(5, gap="small")
+nav_cols = st.columns(len(PANEL_OPTIONS), gap="small")
 for nav_col, (panel_key, panel_label) in zip(nav_cols, PANEL_OPTIONS.items()):
     with nav_col:
         label = f"Selecionado - {panel_label}" if st.session_state["opcao_painel"] == panel_key else panel_label
@@ -2579,5 +2581,7 @@ elif opcao_painel == "desempenho":
     render_desempenho_lojas(df_varejo)
 elif opcao_painel == "produtos":
     render_produtos(df_produtos, produtos_error)
+elif opcao_painel == "filamentos":
+    render_estoque_filamentos(SUPABASE_URL, HEADERS)
 elif opcao_painel == "bambu":
     render_bambu_lab(df_pedidos)
