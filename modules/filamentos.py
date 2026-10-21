@@ -7,7 +7,7 @@ import pandas as pd
 import requests
 import streamlit as st
 
-from modules.catalogo_filamentos import CORES_POR_TIPO, ESTADOS, MARCAS
+from modules.catalogo_filamentos import CATALOGOS_POR_MARCA, CORES_POR_TIPO, ESTADOS, MARCAS
 
 
 COLUNAS = [
@@ -52,6 +52,9 @@ def preparar_lote(marca, tipo, cor, quantidade, estado, peso, peso_atual, cor_he
         raise ValueError("Selecione Fechado ou Aberto.")
     if marca not in MARCAS or not str(tipo or "").strip() or not str(cor or "").strip():
         raise ValueError("Preencha marca, tipo e cor.")
+    catalogo = CATALOGOS_POR_MARCA.get(marca)
+    if catalogo is not None and cor not in catalogo.get(tipo, []):
+        raise ValueError("Selecione um tipo e uma cor do catálogo da marca.")
     cor_hex = str(cor_hex or "").strip().lstrip("#")
     if cor_hex and not re.fullmatch(r"[0-9a-fA-F]{6}([0-9a-fA-F]{2})?", cor_hex):
         raise ValueError("Informe a cor HEX com 6 ou 8 caracteres, ou deixe em branco.")
@@ -145,16 +148,18 @@ def render_estoque_filamentos(url, headers, key_prefix="estoque_filamentos"):
     with col_cadastro:
         st.subheader("Cadastrar filamento")
         marca = st.selectbox("Marca", MARCAS, key=f"{key_prefix}_marca")
-        tipos = list(CORES_POR_TIPO)
-        if marca != "Voolt3D":
-            tipos = ["PLA", "PETG", "ABS", "TPU", "TPU 95A", "ASA", "Nylon"] + tipos
+        catalogo = CATALOGOS_POR_MARCA.get(marca, CORES_POR_TIPO)
+        cadastro_livre = marca not in CATALOGOS_POR_MARCA
+        tipos = list(catalogo)
+        if cadastro_livre:
+            tipos = ["PLA", "PETG"] + tipos
         tipo = st.selectbox(
-            "Tipo", tipos, accept_new_options=marca != "Voolt3D", key=f"{key_prefix}_tipo_{marca}",
+            "Tipo", tipos, accept_new_options=cadastro_livre, key=f"{key_prefix}_tipo_{marca}",
         )
-        cores = CORES_POR_TIPO.get(tipo, sorted({cor for lista in CORES_POR_TIPO.values() for cor in lista}))
+        cores = catalogo.get(tipo, sorted({cor for lista in catalogo.values() for cor in lista}))
         with st.form(f"{key_prefix}_cadastro", clear_on_submit=True):
             cor = st.selectbox(
-                "Cor", cores, accept_new_options=marca != "Voolt3D",
+                "Cor", cores, accept_new_options=cadastro_livre,
                 key=f"{key_prefix}_cor_{marca}_{tipo}",
             )
             col_qtde, col_estado = st.columns(2)

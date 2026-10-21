@@ -1,6 +1,7 @@
-"""Opcoes consultadas no catalogo oficial da Voolt3D em 21/10/2026."""
+"""Catalogos oficiais consultados em 21/10/2026, limitados aos materiais usados."""
 
 CATALOGO_URL = "https://www.voolt3d.com.br/produtos/"
+CATALOGO_3DLAB_URL = "https://3dlab.com.br/categoria-produto/filamento-para-impressora-3d/"
 MARCAS = ["Voolt3D", "3DLAB", "Outros"]
 ESTADOS = ["Fechado", "Aberto"]
 
@@ -54,15 +55,44 @@ CORES_POR_TIPO = {
     "PETG Fibra de Carbono": ["Não especificada"],
     "PETG Grafeno": ["Não especificada"],
     "PETG Outlet": ["Variada (Outlet)"],
-    "ABS": [
-        "Alumínio Metalizado", "Amarelo", "Azul", "Bege Caucasiano", "Branco Dental",
-        "Cinza Claro", "Cinza Grafite", "Cobre Metalizado", "Laranja", "Marmorizado",
-        "Marrom", "Marrom Caramelo", "Natural", "Preto", "Rosa", "Verde",
-        "Verde Neon", "Vermelho",
+}
+
+# As categorias Premium incluem sublinhas; cada cor fica apenas na sua linha.
+CORES_POR_TIPO_3DLAB = {
+    "PLA Premium": [
+        "Amarelo Neon Highlighter", "Amarelo Solar", "Areia Duna", "Azul Céu",
+        "Azul Horizonte", "Azul Petróleo", "Azul Tiffany", "Azul Vitral",
+        "Bege Natural", "Branco Aurora", "Cinza Urbano", "Crystal Clear",
+        "Galáxia Glitter", "Glow Reactor", "Laranja Energia", "Laranja Neon Signal",
+        "Lilás Lavanda", "Marrom Terra", "Mármore Carrara", "Nude Skin",
+        "Prata Alumínio", "Preto Eclipse", "Rosa Blush", "Rosa Fúcsia",
+        "Rosa Pop Art", "Rosê Gold", "Roxo Cósmico", "Sem cor definida (Low Cost)",
+        "Verde Abacate", "Verde Campo", "Verde Floresta", "Verde Jade",
+        "Verde Musgo", "Verde Noturno", "Vermelho Pulse", "Vermelho Racer",
     ],
-    "ABS Outlet": ["Variada (Outlet)"],
-    "PCTG": ["Branco", "Natural", "Preto"],
-    "PA6-Imida (Nylon)": ["Branco", "Cinza", "Natural"],
-    "PA6 Fibra de Carbono (Nylon)": ["Não especificada"],
-    "PVA Solúvel": ["Amarelo"],
+    "PLA Candy Colors": [
+        "Azul Breeze", "Baunilha Cream", "Caramelo Soft", "Fendy",
+        "Rosa Marshmallow", "Verde Menta",
+    ],
+    "PLA Cetim": ["Amarelo Cetim", "Azul Cetim", "Preto Cetim", "Vermelho Cetim"],
+    "PLA Hyper": [
+        "Amarelo Safety", "Azul Industrial", "Branco Polar", "Cinza Técnico",
+        "Preto Carbono", "Verde Engineering", "Vermelho Alert",
+    ],
+    "PLA Rainbow": [
+        "3D Geek Show (Edição limitada)", "Brasil", "Bymodela (Edição limitada)",
+        "Cosplayers (Edição limitada)", "Experience", "Faixa Preta (Edição limitada)",
+        "Hexa", "Hi-Tech (Edição limitada)", "Lollipop", "Sunset",
+    ],
+    "PLA Silk": [
+        "Azul Meia-Noite", "Cobre Elemento", "Grafite Luxo", "Lavanda Serenity",
+        "Marrom Cacau", "Ouro Imperial", "Prata Lunar", "Pérola Nacar",
+        "Rosa Fúcsia", "Sem cor definida (Low Cost)",
+    ],
+    "PLA Ultra Silk": ["Marrom Café", "Oceano Azul"],
+}
+
+CATALOGOS_POR_MARCA = {
+    "Voolt3D": CORES_POR_TIPO,
+    "3DLAB": CORES_POR_TIPO_3DLAB,
 }
