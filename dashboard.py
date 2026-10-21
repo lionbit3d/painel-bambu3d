@@ -252,6 +252,9 @@ design_premium = """
         box-shadow: 0 0 0 2px rgba(255, 59, 59, 0.55) !important;
     }
     .stButton > button p, .stButton > button span { color: #000000 !important; }
+    .st-key-FormSubmitter-estoque_filamentos_cadastro-Cadastrar-filamentos button * {
+        color: #000000 !important;
+    }
     div[data-testid="stTableEditor"], div.glide-data-grid, .gdg-elements {
         background-color: #1a1a1a !important;
     }
